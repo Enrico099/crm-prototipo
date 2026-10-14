@@ -34,21 +34,27 @@ type Props = {
   distribuicaoPerfil: { perfil: string; quantidade: number; pct: number }[] | null;
 };
 
-const PERFIL_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#f43f5e"];
-const NAVY = "#1e40af";
+// Cores vêm dos tokens --viz-* (globals.css): validadas para daltonismo e
+// contraste em cada tema, e trocam sozinhas no modo escuro.
+// Ordem fixa conservador → agressivo, a mesma dos selos de perfil.
+const PERFIL_COLORS = ["var(--viz-perfil-1)", "var(--viz-perfil-2)", "var(--viz-perfil-3)", "var(--viz-perfil-4)"];
+const LINHA = "var(--viz-linha)";
+const GRADE = "var(--viz-grade)";
 // Par validado para daltonismo (verde × vermelho falhava em deutan)
-const APLICACOES = "#2a78d6";
-const RESGATES = "#eb6834";
-const TINTA = "#64748b";
+const APLICACOES = "var(--viz-aplicacoes)";
+const RESGATES = "var(--viz-resgates)";
+const TINTA = "var(--viz-eixo)";
 
 // Evita o aviso "width(-1)" no prerender (o container ainda não tem tamanho)
 const DIM_INICIAL = { width: 320, height: 200 };
 
 const tooltipStyle = {
-  borderRadius: 8,
-  border: "1px solid #e2e8f0",
+  borderRadius: 10,
+  border: "1px solid var(--border)",
+  background: "var(--popover)",
+  color: "var(--popover-foreground)",
   fontSize: 12,
-  boxShadow: "0 4px 12px rgba(15,23,42,0.08)",
+  boxShadow: "0 8px 24px -8px rgba(15,23,42,0.18)",
 };
 
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
@@ -101,11 +107,11 @@ export function DashboardCharts({ serie, erroSerie, distribuicaoPerfil }: Props)
                 <AreaChart data={dados} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
                   <defs>
                     <linearGradient id="gAum" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={NAVY} stopOpacity={0.25} />
-                      <stop offset="100%" stopColor={NAVY} stopOpacity={0} />
+                      <stop offset="0%" stopColor={LINHA} stopOpacity={0.22} />
+                      <stop offset="100%" stopColor={LINHA} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,23,42,0.06)" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={GRADE} vertical={false} />
                   <XAxis dataKey="rotulo" tick={{ fontSize: 11, fill: TINTA }} axisLine={false} tickLine={false} />
                   <YAxis
                     tick={{ fontSize: 11, fill: TINTA }}
@@ -121,10 +127,10 @@ export function DashboardCharts({ serie, erroSerie, distribuicaoPerfil }: Props)
                   <Area
                     type="monotone"
                     dataKey="patrimonioAplicado"
-                    stroke={NAVY}
+                    stroke={LINHA}
                     strokeWidth={2}
                     fill="url(#gAum)"
-                    activeDot={{ r: 4 }}
+                    activeDot={{ r: 5, stroke: "var(--card)", strokeWidth: 2 }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -159,12 +165,14 @@ export function DashboardCharts({ serie, erroSerie, distribuicaoPerfil }: Props)
                       innerRadius={48}
                       outerRadius={88}
                       paddingAngle={2}
+                      stroke="var(--card)"
+                      strokeWidth={2}
                     >
                       {distribuicaoPerfil.map((_, i) => (
                         <Cell key={i} fill={PERFIL_COLORS[i % PERFIL_COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(v) => [`${String(v)} cliente(s)`, ""]} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${String(v)} cliente(s)`, ""]} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -203,7 +211,7 @@ export function DashboardCharts({ serie, erroSerie, distribuicaoPerfil }: Props)
               <div className="h-56" role="img" aria-label="Aplicações e resgates por mês (detalhes na tabela abaixo)">
                 <ResponsiveContainer width="100%" height="100%" initialDimension={DIM_INICIAL}>
                   <BarChart data={dados} margin={{ top: 8, right: 8, left: 8, bottom: 0 }} barGap={2}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,23,42,0.06)" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRADE} vertical={false} />
                     <XAxis dataKey="rotulo" tick={{ fontSize: 11, fill: TINTA }} axisLine={false} tickLine={false} />
                     <YAxis
                       tick={{ fontSize: 11, fill: TINTA }}
@@ -215,7 +223,7 @@ export function DashboardCharts({ serie, erroSerie, distribuicaoPerfil }: Props)
                     <Tooltip
                       contentStyle={tooltipStyle}
                       formatter={(v, nome) => [fmt.brl(Number(v)), String(nome)]}
-                      cursor={{ fill: "rgba(15,23,42,0.04)" }}
+                      cursor={{ fill: GRADE }}
                     />
                     <Legend
                       verticalAlign="top"

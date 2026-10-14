@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { AlertCircle, Briefcase, Loader2, ShieldCheck } from "lucide-react";
+import { AlertCircle, Loader2, ShieldCheck } from "lucide-react";
+import { Marca } from "@/components/nav-links";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,35 +23,70 @@ const loginSchema = z.object({
 
 type LoginInputs = z.infer<typeof loginSchema>;
 
-const IS_DEV = process.env.NODE_ENV !== "production";
+// Só no banco de demonstração (seed): em uso real a dica confundiria
+const MOSTRAR_CREDENCIAIS_DEMO = process.env.NEXT_PUBLIC_CREDENCIAIS_DEMO === "true";
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/40 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-6">
-          <div className="h-11 w-11 rounded-lg bg-gradient-to-br from-primary to-primary/70 text-primary-foreground flex items-center justify-center shadow-sm mb-3">
-            <Briefcase className="h-5 w-5" aria-hidden />
-          </div>
-          <h1 className="text-lg font-semibold tracking-tight">Capital Elite</h1>
-          <p className="text-xs text-muted-foreground uppercase tracking-[0.14em] mt-0.5">
-            Wealth Management
+    <div className="min-h-screen grid lg:grid-cols-[1.1fr_1fr] bg-background">
+      {/* Painel de marca (desktop) */}
+      <aside className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-sidebar p-12 text-sidebar-foreground">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.35]"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 20% 15%, oklch(0.79 0.11 80 / 0.22), transparent 45%), radial-gradient(circle at 85% 90%, oklch(0.55 0.08 262 / 0.5), transparent 50%)",
+          }}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)",
+            backgroundSize: "56px 56px",
+          }}
+        />
+        <div className="relative">
+          <Marca />
+        </div>
+        <div className="relative max-w-md">
+          <p className="titulo-display text-[44px] leading-[1.05] text-sidebar-accent-foreground">
+            Patrimônio bem cuidado começa por uma boa conversa.
+          </p>
+          <p className="mt-5 text-sm leading-relaxed text-sidebar-foreground/70">
+            Carteiras, suitability e recomendações explicáveis em um só lugar, com cada decisão
+            registrada para o compliance.
           </p>
         </div>
+        <p className="relative text-[11px] uppercase tracking-[0.2em] text-sidebar-foreground/40">
+          Apoio à decisão do assessor · CVM 30
+        </p>
+      </aside>
 
-        {/* useSearchParams exige Suspense boundary pra não quebrar o prerender */}
-        <Suspense fallback={<Card className="h-72" />}>
-          <LoginForm />
-        </Suspense>
+      <main className="flex items-center justify-center p-6 sm:p-10">
+        <div className="w-full max-w-sm">
+          <div className="lg:hidden mb-8 rounded-xl bg-sidebar px-5 py-4 inline-flex">
+            <Marca />
+          </div>
+          <h1 className="titulo-display text-[40px] leading-none mb-2">Bem-vindo de volta</h1>
+          <p className="text-sm text-muted-foreground mb-8">Entre com suas credenciais corporativas.</p>
 
-        {IS_DEV && (
-          <p className="text-center text-[11px] text-muted-foreground mt-4">
-            Ambiente de desenvolvimento:{" "}
-            <code className="font-mono">admin@capitalelite.com.br</code> /{" "}
-            <code className="font-mono">Senha123!</code>
-          </p>
-        )}
-      </div>
+          {/* useSearchParams exige Suspense boundary pra não quebrar o prerender */}
+          <Suspense fallback={<Card className="h-72" />}>
+            <LoginForm />
+          </Suspense>
+
+          {MOSTRAR_CREDENCIAIS_DEMO && (
+            <p className="text-center text-[11px] text-muted-foreground mt-4">
+              Dados de demonstração:{" "}
+              <code className="font-mono">admin@capitalelite.com.br</code> /{" "}
+              <code className="font-mono">Senha123!</code>
+            </p>
+          )}
+        </div>
+      </main>
     </div>
   );
 }
@@ -100,13 +136,6 @@ function LoginForm() {
   return (
     <Card>
       <CardContent className="p-6 space-y-4">
-        <div>
-          <h2 className="font-semibold tracking-tight">Acesse sua conta</h2>
-          <p className="text-xs text-muted-foreground mt-1">
-            Use suas credenciais corporativas
-          </p>
-        </div>
-
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3" noValidate>
           <div className="space-y-1.5">
             <Label htmlFor="email" className="text-xs">

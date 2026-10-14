@@ -188,7 +188,7 @@ export default function ClienteDetalhePage({
 
             <div className="flex-1">
               <div className="flex items-center gap-2 flex-wrap mb-1">
-                <h1 className="text-2xl font-semibold tracking-tight">
+                <h1 className="titulo-display text-[34px] leading-none">
                   {cliente.nome}
                 </h1>
                 <Badge
@@ -256,7 +256,7 @@ export default function ClienteDetalhePage({
               <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground font-semibold">
                 Patrimônio
               </p>
-              <p className="text-2xl font-semibold tabular-nums mt-1">
+              <p className="titulo-display text-[34px] leading-none tabular-nums mt-2">
                 {fmt.brl(cliente.patrimonio)}
               </p>
               {podeOperar && (
@@ -272,7 +272,7 @@ export default function ClienteDetalhePage({
                     Gerar recomendação
                   </Button>
                   {motivoBloqueio && (
-                    <p id="motivo-bloqueio" className="text-[11px] text-amber-800 mt-1.5 max-w-[220px] md:ml-auto">
+                    <p id="motivo-bloqueio" className="text-[11px] text-aviso-foreground mt-1.5 max-w-[220px] md:ml-auto">
                       {motivoBloqueio}
                     </p>
                   )}
@@ -389,7 +389,7 @@ export default function ClienteDetalhePage({
                           </div>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-sm font-medium font-mono tabular-nums">
+                          <p className="text-sm font-medium tabular-nums">
                             {fmt.brl(pos.valor)}
                           </p>
                           <p className="text-xs text-muted-foreground tabular-nums">
@@ -456,7 +456,7 @@ export default function ClienteDetalhePage({
                   )}
                 </div>
                 {cliente.suitability.vencida && (
-                  <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900" role="status">
+                  <p className="rounded-md border border-aviso-borda bg-aviso p-2 text-xs text-aviso-foreground" role="status">
                     Suitability vencida: o cliente não pode receber novas recomendações até reaplicar.
                   </p>
                 )}

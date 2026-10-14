@@ -186,16 +186,20 @@ describe("Navegação principal", () => {
     pathname = "/clientes/abc";
     renderComQuery(<NavLinks />);
     const links = screen.getAllByRole("link");
+    // Agrupada: Carteira · Investimentos · Análise
     expect(links.map((l) => l.textContent)).toEqual([
       "Dashboard",
       "Leads & Clientes",
+      "Pipeline",
+      "Histórico",
       "Suitability",
       "Produtos",
       "Recomendações IA",
-      "Pipeline",
-      "Histórico",
       "Relatórios",
     ]);
+    for (const grupo of ["Carteira", "Investimentos", "Análise"]) {
+      expect(screen.getByText(grupo)).toBeInTheDocument();
+    }
     expect(screen.getByRole("link", { name: "Leads & Clientes" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Dashboard" })).not.toHaveAttribute("aria-current");
   });

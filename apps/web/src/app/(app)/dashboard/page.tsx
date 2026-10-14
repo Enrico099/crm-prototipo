@@ -215,11 +215,11 @@ function Pendencia({
       href={href}
       className={cn(
         "flex items-center gap-3 rounded-md border p-3 text-sm transition-colors hover:bg-muted/50",
-        alerta ? "border-amber-300 bg-amber-50/60" : "border-border",
+        alerta ? "border-aviso-borda bg-aviso" : "border-border",
       )}
     >
       {alerta ? (
-        <AlertTriangle className="h-4 w-4 shrink-0 text-amber-700" aria-hidden />
+        <AlertTriangle className="h-4 w-4 shrink-0 text-aviso-foreground" aria-hidden />
       ) : (
         <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden />
       )}

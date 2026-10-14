@@ -107,9 +107,9 @@ export function RecomendacaoCard({ recomendacao: r, onActionDone }: Props) {
   const scorePct = Math.round(r.score * 100);
   const scoreColor =
     scorePct >= 80
-      ? "text-emerald-700"
+      ? "text-positivo"
       : scorePct >= 60
-        ? "text-amber-700"
+        ? "text-aviso-foreground"
         : "text-muted-foreground";
   const progressColor =
     scorePct >= 80 ? "bg-emerald-500" : scorePct >= 60 ? "bg-amber-500" : "bg-slate-400";
@@ -349,7 +349,7 @@ function AprovarDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 flex gap-2">
+        <div className="rounded-md border border-aviso-borda bg-aviso p-3 text-xs text-aviso-foreground flex gap-2">
           <Info className="h-4 w-4 shrink-0" aria-hidden />
           <p>
             {AVISO_APOIO_DECISAO} Sua aprovação fica registrada na trilha de auditoria com data,

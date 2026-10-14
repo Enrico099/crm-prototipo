@@ -15,31 +15,26 @@ type Props = {
 // (Variação % vs. período anterior foi removida: o sistema ainda não guarda
 // histórico, então qualquer delta exibido seria inventado.)
 
-const toneStyles: Record<Tone, { bg: string; fg: string }> = {
-  blue: { bg: "bg-blue-50", fg: "text-blue-700" },
-  emerald: { bg: "bg-emerald-50", fg: "text-emerald-700" },
-  amber: { bg: "bg-amber-50", fg: "text-amber-700" },
-  violet: { bg: "bg-violet-50", fg: "text-violet-700" },
-  rose: { bg: "bg-rose-50", fg: "text-rose-700" },
+// O tom fica só no ícone: o número é sempre na cor do texto
+const toneStyles: Record<Tone, string> = {
+  blue: "text-blue-700 dark:text-blue-300",
+  emerald: "text-emerald-700 dark:text-emerald-300",
+  amber: "text-ouro",
+  violet: "text-violet-700 dark:text-violet-300",
+  rose: "text-rose-700 dark:text-rose-300",
 };
 
 export function KpiCard({ label, value, icon: Icon, hint, tone = "blue" }: Props) {
-  const t = toneStyles[tone];
-
   return (
     <Card className="relative overflow-hidden">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between mb-3">
-          <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center", t.bg, t.fg)}>
-            <Icon className="h-4 w-4" aria-hidden />
-          </div>
+      <CardContent className="px-5 py-1">
+        {/* Altura de duas linhas: rótulos longos não desalinham os números da fileira */}
+        <div className="flex items-start justify-between gap-2 min-h-8">
+          <p className="rotulo leading-snug">{label}</p>
+          <Icon className={cn("h-4 w-4 shrink-0", toneStyles[tone])} strokeWidth={1.75} aria-hidden />
         </div>
-
-        <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">
-          {label}
-        </p>
-        <p className="text-2xl font-semibold tracking-tight mt-1 tabular-nums">{value}</p>
-        {hint && <p className="text-xs text-muted-foreground mt-1">{hint}</p>}
+        <p className="titulo-display text-[38px] leading-none mt-4 tabular-nums">{value}</p>
+        {hint && <p className="text-xs text-muted-foreground mt-2.5">{hint}</p>}
       </CardContent>
     </Card>
   );

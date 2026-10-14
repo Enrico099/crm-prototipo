@@ -17,7 +17,7 @@ export default function AppLayout({
       <AppSidebar />
       <div className="md:pl-64 flex flex-col min-h-screen">
         <AppHeader />
-        <main id="conteudo" tabIndex={-1} className="flex-1 p-4 sm:p-6 md:p-8 max-w-[1600px] w-full mx-auto outline-none">
+        <main id="conteudo" tabIndex={-1} className="flex-1 px-4 py-6 sm:px-6 md:px-10 md:py-9 max-w-[1500px] w-full mx-auto outline-none">
           {children}
         </main>
       </div>

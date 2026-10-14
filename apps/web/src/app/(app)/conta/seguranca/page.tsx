@@ -37,9 +37,9 @@ export default function SegurancaPage() {
       {status.data?.obrigatorio && !status.data.ativo && (
         <p
           role="alert"
-          className="mb-4 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"
+          className="mb-4 flex items-start gap-2 rounded-md border border-aviso-borda bg-aviso p-3 text-sm text-aviso-foreground"
         >
-          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" aria-hidden />
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-aviso-foreground" aria-hidden />
           A verificação em duas etapas é obrigatória para o seu perfil. Ative abaixo para voltar a usar o sistema.
         </p>
       )}
@@ -207,7 +207,7 @@ function CodigosRecuperacao({ codigos, onConcluir }: { codigos: string[]; onConc
 
   return (
     <div className="space-y-3">
-      <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950" role="status">
+      <p className="rounded-md border border-aviso-borda bg-aviso p-3 text-xs text-aviso-foreground" role="status">
         Guarde estes códigos em lugar seguro. Se perder o celular, cada código substitui o aplicativo em um login.
         <strong> Eles não serão mostrados de novo.</strong>
       </p>

@@ -109,7 +109,7 @@ export default function PipelinePage() {
                           Cliente
                         </Badge>
                       )}
-                      <p className="font-mono text-sm text-emerald-700 font-semibold tabular-nums">
+                      <p className="text-sm text-positivo font-semibold tabular-nums">
                         {fmt.brl(lead.valorEstimado)}
                       </p>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">

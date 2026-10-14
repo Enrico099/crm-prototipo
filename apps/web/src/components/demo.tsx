@@ -10,7 +10,7 @@ export function DemoBadge({ className, texto = "Dados demonstrativos" }: { class
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800",
+        "inline-flex items-center gap-1 rounded-full border border-aviso-borda bg-aviso px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-aviso-foreground",
         className,
       )}
     >

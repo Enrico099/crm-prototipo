@@ -91,6 +91,12 @@ auditoria continuam na API; não use Supabase Auth, RLS nem `supabase-js` no fro
    - `DIRECT_URL`: conexão de sessão (porta **5432**), usada pelas migrações.
 3. Aplique o schema com `npx prisma migrate deploy` (em `apps/api`), não com `migrate dev`,
    que pede um shadow database. O seed é opcional e **apaga os dados**.
+4. Em uso real, sem seed, crie o primeiro administrador (a senha é pedida no terminal, sem eco):
+   ```bash
+   npm run usuario:admin -w @crm/api -- --email voce@empresa.com.br --nome "Seu Nome"
+   ```
+   Mínimo de 12 caracteres, com letras e números. Não altera usuário existente e registra a
+   criação na auditoria.
 
 No plano gratuito o projeto pausa depois de 7 dias sem uso. CI e testes E2E continuam em um
 Postgres descartável: não aponte para o banco do Supabase.

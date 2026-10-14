@@ -86,6 +86,13 @@ function irParaLogin() {
   window.location.replace(`/login?from=${from}`);
 }
 
+export const PAGINA_SEGURANCA = "/conta/seguranca";
+
+function irParaSeguranca() {
+  if (typeof window === "undefined" || window.location.pathname === PAGINA_SEGURANCA) return;
+  window.location.replace(PAGINA_SEGURANCA);
+}
+
 export async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
   let res = await rawFetch(path, opts);
 
@@ -103,6 +110,8 @@ export async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promis
   const data = text ? safeParse(text) : null;
 
   if (!res.ok) {
+    // Perfil com MFA obrigatório ainda sem MFA: a API só libera a ativação
+    if (res.status === 403 && (data as { code?: unknown } | null)?.code === "MFA_OBRIGATORIO") irParaSeguranca();
     throw new ApiError(res.status, mensagemDeErro(res.status, data), data);
   }
 

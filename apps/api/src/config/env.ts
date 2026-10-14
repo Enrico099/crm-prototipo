@@ -17,6 +17,18 @@ const envSchema = z
     // Segredo (pepper) do HMAC do CPF. Sem ele o hash do CPF é revertível por força bruta.
     CPF_HASH_SECRET: z.string().optional(),
 
+    // Chave que cifra os segredos TOTP do MFA no banco. Trocar depois que houver
+    // MFA ativo invalida os autenticadores já configurados.
+    MFA_CHAVE: z.string().optional(),
+    // Perfis que só usam o sistema com MFA ativo (separados por vírgula). Vazio = opcional.
+    MFA_OBRIGATORIO_PARA: z
+      .string()
+      .default('')
+      .transform((v) => v.split(',').map((p) => p.trim().toUpperCase()).filter(Boolean))
+      .pipe(z.array(z.enum(['ADMIN', 'ASSESSOR', 'COMPLIANCE', 'READONLY']), {
+        errorMap: () => ({ message: 'Use perfis válidos: ADMIN, ASSESSOR, COMPLIANCE, READONLY' }),
+      })),
+
     // Força cookie Secure fora de produção (ex.: staging atrás de HTTPS)
     COOKIE_SECURE: z
       .enum(['true', 'false'])
@@ -56,6 +68,13 @@ const envSchema = z
         code: z.ZodIssueCode.custom,
         path: ['CPF_HASH_SECRET'],
         message: 'CPF_HASH_SECRET precisa ter 32+ caracteres em produção',
+      });
+    }
+    if (!env.MFA_CHAVE || env.MFA_CHAVE.length < 32) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['MFA_CHAVE'],
+        message: 'MFA_CHAVE precisa ter 32+ caracteres em produção',
       });
     }
     if (!env.AI_ENGINE_TOKEN) {

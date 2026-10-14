@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, LogOut, Menu, Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { LogOut, Menu, ShieldCheck } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { AlternarTema } from "@/components/alternar-tema";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +38,15 @@ function initials(nome: string) {
     .toUpperCase();
 }
 
+function hoje() {
+  return new Intl.DateTimeFormat("pt-BR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date());
+}
+
 export function AppHeader() {
   const router = useRouter();
   const { data: user, isLoading } = useMe();
@@ -55,7 +65,7 @@ export function AppHeader() {
   }
 
   return (
-    <header className="h-16 border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-20 flex items-center gap-3 px-4 md:px-6">
+    <header className="h-[72px] border-b border-border/70 bg-background/85 backdrop-blur-xl sticky top-0 z-20 flex items-center gap-3 px-4 sm:px-6 md:px-10">
       {/* Menu mobile — a sidebar só aparece a partir de md */}
       <Button
         variant="ghost"
@@ -78,26 +88,13 @@ export function AppHeader() {
         </SheetContent>
       </Sheet>
 
-      <div className="relative flex-1 max-w-md hidden sm:block">
-        <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden />
-        <Input
-          placeholder="Busca global (em breve)"
-          aria-label="Busca global — disponível em uma próxima versão"
-          disabled
-          className="pl-9 h-9 bg-muted/40 border-muted"
-        />
-      </div>
+      <p className="hidden sm:block text-sm text-muted-foreground first-letter:uppercase" suppressHydrationWarning>
+        {hoje()}
+      </p>
 
-      <div className="flex items-center gap-2 ml-auto">
-        <Button
-          variant="ghost"
-          size="icon"
-          disabled
-          title="Notificações — disponível em uma próxima versão"
-          aria-label="Notificações (em breve)"
-        >
-          <Bell className="h-4 w-4" aria-hidden />
-        </Button>
+      <div className="flex items-center gap-1 ml-auto">
+        <AlternarTema />
+        <span className="mx-1 h-6 w-px bg-border" aria-hidden />
 
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -141,8 +138,10 @@ export function AppHeader() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem disabled>Perfil (em breve)</DropdownMenuItem>
-              <DropdownMenuItem disabled>Configurações (em breve)</DropdownMenuItem>
+              <DropdownMenuItem render={<Link href="/conta/seguranca" />}>
+                <ShieldCheck className="h-4 w-4" aria-hidden />
+                Segurança da conta
+              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem

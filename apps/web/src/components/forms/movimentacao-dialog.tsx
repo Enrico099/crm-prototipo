@@ -260,10 +260,10 @@ function FormMovimentacao({
       {motivo && (
         <div
           role="alert"
-          className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950"
+          className="space-y-2 rounded-md border border-aviso-borda bg-aviso p-3 text-xs text-aviso-foreground"
         >
           <p className="flex items-start gap-1.5 font-medium">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-700" aria-hidden />
+            <AlertTriangle className="h-4 w-4 shrink-0 text-aviso-foreground" aria-hidden />
             Aplicação desenquadrada (CVM 30)
           </p>
           <p>{motivo}</p>

@@ -9,6 +9,8 @@ import { PrismaService } from '../src/prisma/prisma.service';
 import { AiEngineService, type AiEngineResponse } from '../src/recomendacoes/ai-engine.service';
 import { QUESTIONARIO } from '../src/suitability/questionario';
 import { FakePrisma, novoId } from './fake-prisma';
+import { ConfigService } from '@nestjs/config';
+import { base32Decode, hotp, passoAtual } from '../src/auth/mfa/totp';
 
 const SENHA = 'Senha123!';
 
@@ -843,6 +845,239 @@ describe('API (e2e com banco em memória)', () => {
 
       const joao = await logar(c, 'joao@ce.com');
       await joao.get('/api/usuarios/assessores').expect(403);
+    });
+  });
+
+  // ============================================================
+  describe('MFA (verificação em duas etapas)', () => {
+    /** Código do autenticador para o segredo, deslocado em passos de 30 s */
+    const codigo = (segredo: string, passos = 0) => hotp(base32Decode(segredo), passoAtual() + passos);
+
+    /** Configura e ativa o MFA do usuário logado; devolve segredo e códigos de recuperação */
+    async function ativarMfa(agent: ReturnType<typeof request.agent>) {
+      const conf = await agent.post('/api/auth/mfa/configurar').expect(200);
+      const segredo = conf.body.segredo as string;
+      const ativ = await agent.post('/api/auth/mfa/ativar').send({ codigo: codigo(segredo) }).expect(200);
+      return { segredo, recuperacao: ativ.body.codigosRecuperacao as string[] };
+    }
+
+    /** Avança o relógio da API (TOTP e JWT) sem fake timers, que travam o supertest */
+    function adiantarRelogio(ms: number) {
+      const real = Date.now.bind(Date);
+      return jest.spyOn(Date, 'now').mockImplementation(() => real() + ms);
+    }
+
+    afterEach(() => jest.restoreAllMocks());
+
+    it('configurar guarda o segredo cifrado; ativar exige código válido e devolve 10 códigos', async () => {
+      const joao = await logar(c, 'joao@ce.com');
+      const conf = await joao.post('/api/auth/mfa/configurar').expect(200);
+      expect(conf.body.uri).toMatch(/^otpauth:\/\/totp\/Capital%20Elite%3Ajoao%40ce\.com\?secret=/);
+
+      const salvo = c.prisma.linhas('user').find((u) => u.id === c.joao.id)!;
+      expect(salvo.mfaSecret).toBeTruthy();
+      expect(salvo.mfaSecret).not.toContain(conf.body.segredo);
+      expect(salvo.mfaEnabled).toBe(false);
+
+      const errado = await joao.post('/api/auth/mfa/ativar').send({ codigo: '000000' }).expect(400);
+      expect(errado.body.errors.fieldErrors.codigo[0]).toMatch(/Código inválido/);
+
+      const ok = await joao.post('/api/auth/mfa/ativar').send({ codigo: codigo(conf.body.segredo) }).expect(200);
+      expect(ok.body.codigosRecuperacao).toHaveLength(10);
+      expect(valorCookie(ok, 'crm_at')).toBeDefined();
+      expect(auditorias(c, 'MFA_ATIVACAO')).toHaveLength(1);
+      // Só os hashes vão para o banco
+      const hashes = c.prisma.linhas('codigoRecuperacaoMfa').map((r) => r.hash);
+      expect(hashes).toHaveLength(10);
+      expect(hashes).not.toContain(ok.body.codigosRecuperacao[0]);
+
+      const status = await joao.get('/api/auth/mfa').expect(200);
+      expect(status.body).toMatchObject({ ativo: true, codigosRestantes: 10, obrigatorio: false });
+      await joao.post('/api/auth/mfa/configurar').expect(409);
+    });
+
+    it('ativar encerra as sessões abertas sem MFA e mantém a atual', async () => {
+      const outraAba = await logar(c, 'joao@ce.com');
+      const joao = await logar(c, 'joao@ce.com');
+      await ativarMfa(joao);
+
+      await outraAba.post('/api/auth/refresh').expect(401);
+      await joao.post('/api/auth/refresh').expect(200);
+    });
+
+    it('login com MFA: senha certa dá só um desafio; o código abre a sessão', async () => {
+      const { segredo } = await ativarMfa(await logar(c, 'joao@ce.com'));
+
+      const agent = request.agent(c.app.getHttpServer());
+      const etapa1 = await agent.post('/api/auth/login').send({ email: 'joao@ce.com', password: SENHA }).expect(200);
+      expect(etapa1.body).toEqual({ mfaObrigatorio: true, desafio: expect.any(String) });
+      expect(cookies(etapa1)).toHaveLength(0);
+      await agent.get('/api/auth/me').expect(401);
+      // O desafio não serve como token de acesso
+      await request(c.app.getHttpServer()).get('/api/clientes').set('Authorization', `Bearer ${etapa1.body.desafio}`).expect(401);
+
+      // O código usado na ativação não vale de novo (mesmo passo de 30 s)
+      await agent.post('/api/auth/mfa/verificar').send({ desafio: etapa1.body.desafio, codigo: codigo(segredo) }).expect(401);
+      expect(auditorias(c, 'MFA_FALHA')).toHaveLength(1);
+
+      adiantarRelogio(30_000);
+      const etapa2 = await agent
+        .post('/api/auth/mfa/verificar')
+        .send({ desafio: etapa1.body.desafio, codigo: codigo(segredo) })
+        .expect(200);
+      expect(etapa2.body.user.email).toBe('joao@ce.com');
+      const me = await agent.get('/api/auth/me').expect(200);
+      expect(me.body.mfa).toEqual({ ativo: true, obrigatorio: false });
+      expect(auditorias(c, 'LOGIN').at(-1)?.diff).toEqual({ mfa: 'totp' });
+    });
+
+    it('código de recuperação entra uma única vez e é auditado', async () => {
+      const { recuperacao } = await ativarMfa(await logar(c, 'joao@ce.com'));
+      const http = request(c.app.getHttpServer());
+      const desafio = async () =>
+        (await http.post('/api/auth/login').send({ email: 'joao@ce.com', password: SENHA })).body.desafio as string;
+
+      // Digitado com maiúsculas e espaço, como alguém copiaria de um papel
+      const digitado = recuperacao[0].toUpperCase().replace('-', ' ');
+      const d1 = await desafio();
+      await http.post('/api/auth/mfa/verificar').send({ desafio: d1, codigo: digitado }).expect(200);
+      const d2 = await desafio();
+      await http.post('/api/auth/mfa/verificar').send({ desafio: d2, codigo: recuperacao[0] }).expect(401);
+
+      expect(auditorias(c, 'MFA_USO_RECUPERACAO')[0].diff).toEqual({ codigosRestantes: 9 });
+    });
+
+    it('5 códigos errados bloqueiam o segundo fator com 429', async () => {
+      const { segredo } = await ativarMfa(await logar(c, 'joao@ce.com'));
+      const http = request(c.app.getHttpServer());
+      const { desafio } = (await http.post('/api/auth/login').send({ email: 'joao@ce.com', password: SENHA })).body;
+
+      for (let i = 0; i < 5; i++) {
+        await http.post('/api/auth/mfa/verificar').send({ desafio, codigo: '000000' }).expect(401);
+      }
+      adiantarRelogio(30_000);
+      await http.post('/api/auth/mfa/verificar').send({ desafio, codigo: codigo(segredo) }).expect(429);
+    });
+
+    it('desafio inválido ou expirado → 401', async () => {
+      await ativarMfa(await logar(c, 'joao@ce.com'));
+      const http = request(c.app.getHttpServer());
+      await http.post('/api/auth/mfa/verificar').send({ desafio: 'nao-e-um-jwt', codigo: '123456' }).expect(401);
+
+      const { desafio } = (await http.post('/api/auth/login').send({ email: 'joao@ce.com', password: SENHA })).body;
+      adiantarRelogio(6 * 60_000);
+      const res = await http.post('/api/auth/mfa/verificar').send({ desafio, codigo: '123456' }).expect(401);
+      expect(res.body.message).toMatch(/expirou/);
+    });
+
+    it('desativar exige senha e código; apaga segredo e códigos', async () => {
+      const joao = await logar(c, 'joao@ce.com');
+      const { segredo } = await ativarMfa(joao);
+      adiantarRelogio(30_000);
+
+      const senhaErrada = await joao
+        .post('/api/auth/mfa/desativar')
+        .send({ senha: 'errada123', codigo: codigo(segredo) })
+        .expect(400);
+      expect(senhaErrada.body.errors.fieldErrors.senha).toEqual(['Senha incorreta.']);
+      const codigoErrado = await joao.post('/api/auth/mfa/desativar').send({ senha: SENHA, codigo: '000000' }).expect(400);
+      expect(codigoErrado.body.errors.fieldErrors.codigo).toBeDefined();
+
+      await joao.post('/api/auth/mfa/desativar').send({ senha: SENHA, codigo: codigo(segredo) }).expect(200);
+      const salvo = c.prisma.linhas('user').find((u) => u.id === c.joao.id)!;
+      expect(salvo).toMatchObject({ mfaEnabled: false, mfaSecret: null });
+      expect(c.prisma.linhas('codigoRecuperacaoMfa')).toHaveLength(0);
+      expect(auditorias(c, 'MFA_DESATIVACAO')).toHaveLength(1);
+      // Volta ao login de uma etapa
+      const login = await request(c.app.getHttpServer()).post('/api/auth/login').send({ email: 'joao@ce.com', password: SENHA });
+      expect(login.body.user).toBeDefined();
+    });
+
+    it('regenerar códigos invalida os anteriores', async () => {
+      const joao = await logar(c, 'joao@ce.com');
+      const { segredo, recuperacao } = await ativarMfa(joao);
+      adiantarRelogio(30_000);
+      const novos = await joao.post('/api/auth/mfa/codigos').send({ codigo: codigo(segredo) }).expect(200);
+      expect(novos.body.codigosRecuperacao).toHaveLength(10);
+
+      const http = request(c.app.getHttpServer());
+      const { desafio } = (await http.post('/api/auth/login').send({ email: 'joao@ce.com', password: SENHA })).body;
+      await http.post('/api/auth/mfa/verificar').send({ desafio, codigo: recuperacao[1] }).expect(401);
+      await http.post('/api/auth/mfa/verificar').send({ desafio, codigo: novos.body.codigosRecuperacao[0] }).expect(200);
+    });
+
+    describe('obrigatório por perfil (MFA_OBRIGATORIO_PARA=ADMIN)', () => {
+      beforeEach(() => {
+        const config = c.app.get(ConfigService);
+        const get = config.get.bind(config);
+        jest
+          .spyOn(config, 'get')
+          .mockImplementation(((chave: string) => (chave === 'MFA_OBRIGATORIO_PARA' ? ['ADMIN'] : get(chave))) as typeof config.get);
+      });
+
+      it('sem MFA, o admin só acessa o necessário para ativar; depois de ativar, tudo', async () => {
+        const admin = await logar(c, 'admin@ce.com');
+        const bloqueado = await admin.get('/api/clientes').expect(403);
+        expect(bloqueado.body.code).toBe('MFA_OBRIGATORIO');
+
+        const me = await admin.get('/api/auth/me').expect(200);
+        expect(me.body.mfa).toEqual({ ativo: false, obrigatorio: true });
+
+        await ativarMfa(admin);
+        await admin.get('/api/clientes').expect(200);
+      });
+
+      it('perfis fora da lista não são afetados, e o admin não pode desativar', async () => {
+        const joao = await logar(c, 'joao@ce.com');
+        await joao.get('/api/clientes').expect(200);
+
+        const admin = await logar(c, 'admin@ce.com');
+        const { segredo } = await ativarMfa(admin);
+        adiantarRelogio(30_000);
+        const res = await admin.post('/api/auth/mfa/desativar').send({ senha: SENHA, codigo: codigo(segredo) }).expect(400);
+        expect(res.body.message).toMatch(/obrigatória/);
+      });
+    });
+  });
+
+  // ============================================================
+  describe('troca de senha', () => {
+    const NOVA = 'NovaSenhaForte2026';
+
+    it('confere a senha atual e aplica a política na nova', async () => {
+      const joao = await logar(c, 'joao@ce.com');
+      const atual = await joao.post('/api/auth/senha').send({ senhaAtual: 'errada123', novaSenha: NOVA }).expect(400);
+      expect(atual.body.errors.fieldErrors.senhaAtual).toEqual(['Senha atual incorreta.']);
+
+      const fraca = await joao.post('/api/auth/senha').send({ senhaAtual: SENHA, novaSenha: 'curta1' }).expect(400);
+      expect(fraca.body.errors.fieldErrors.novaSenha[0]).toMatch(/12 caracteres/);
+    });
+
+    it('troca a senha, encerra as outras sessões e mantém a atual', async () => {
+      const outraAba = await logar(c, 'joao@ce.com');
+      const joao = await logar(c, 'joao@ce.com');
+
+      await joao.post('/api/auth/senha').send({ senhaAtual: SENHA, novaSenha: NOVA }).expect(200);
+      expect(auditorias(c, 'ALTERACAO_SENHA')).toHaveLength(1);
+      expect(JSON.stringify(auditorias(c, 'ALTERACAO_SENHA'))).not.toContain(NOVA);
+
+      await outraAba.post('/api/auth/refresh').expect(401);
+      await joao.post('/api/auth/refresh').expect(200);
+
+      const http = request(c.app.getHttpServer());
+      await http.post('/api/auth/login').send({ email: 'joao@ce.com', password: SENHA }).expect(401);
+      await http.post('/api/auth/login').send({ email: 'joao@ce.com', password: NOVA }).expect(200);
+    });
+
+    it('a mesma senha não é aceita como nova', async () => {
+      await c.prisma.user.update({
+        where: { id: c.joao.id },
+        data: { senhaHash: await bcrypt.hash(NOVA, 4) },
+      });
+      const agent = request.agent(c.app.getHttpServer());
+      await agent.post('/api/auth/login').send({ email: 'joao@ce.com', password: NOVA }).expect(200);
+      const res = await agent.post('/api/auth/senha').send({ senhaAtual: NOVA, novaSenha: NOVA }).expect(400);
+      expect(res.body.errors.fieldErrors.novaSenha).toEqual(['A nova senha precisa ser diferente da atual.']);
     });
   });
 });

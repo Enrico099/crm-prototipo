@@ -8,6 +8,8 @@ import { apiFetch } from "./api";
 import type {
   AplicarSuitabilityResult,
   AuthUser,
+  LoginResposta,
+  MfaStatus,
   Cliente,
   ClienteDetalhado,
   ConversaoLeadResult,
@@ -49,10 +51,75 @@ export function useLogin() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: { email: string; password: string }) =>
-      apiFetch<{ user: AuthUser }>("/auth/login", { method: "POST", body }),
+      apiFetch<LoginResposta>("/auth/login", { method: "POST", body }),
+    onSuccess: (res) => {
+      if (!res.mfaObrigatorio) qc.setQueryData(ME_QUERY_KEY, res.user);
+    },
+  });
+}
+
+/** 2ª etapa do login: código do autenticador ou de recuperação */
+export function useVerificarMfa() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { desafio: string; codigo: string }) =>
+      apiFetch<{ user: AuthUser }>("/auth/mfa/verificar", { method: "POST", body }),
     onSuccess: ({ user }) => {
       qc.setQueryData(ME_QUERY_KEY, user);
     },
+  });
+}
+
+// ----- Segurança da conta (MFA e senha) -----
+
+export const MFA_STATUS_KEY = ["auth", "mfa"] as const;
+
+export function useMfaStatus() {
+  return useQuery({
+    queryKey: MFA_STATUS_KEY,
+    queryFn: () => apiFetch<MfaStatus>("/auth/mfa"),
+    retry: false,
+  });
+}
+
+export function useConfigurarMfa() {
+  return useMutation({
+    mutationFn: () => apiFetch<{ segredo: string; uri: string }>("/auth/mfa/configurar", { method: "POST" }),
+  });
+}
+
+/** Ativar e desativar renovam a sessão (cookies novos): tudo o que é cacheado é recarregado */
+export function useAtivarMfa() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { codigo: string }) =>
+      apiFetch<{ codigosRecuperacao: string[] }>("/auth/mfa/ativar", { method: "POST", body }),
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}
+
+export function useDesativarMfa() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { senha: string; codigo: string }) =>
+      apiFetch<{ ok: true }>("/auth/mfa/desativar", { method: "POST", body }),
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}
+
+export function useRegenerarCodigosMfa() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { codigo: string }) =>
+      apiFetch<{ codigosRecuperacao: string[] }>("/auth/mfa/codigos", { method: "POST", body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: MFA_STATUS_KEY }),
+  });
+}
+
+export function useAlterarSenha() {
+  return useMutation({
+    mutationFn: (body: { senhaAtual: string; novaSenha: string }) =>
+      apiFetch<{ user: AuthUser }>("/auth/senha", { method: "POST", body }),
   });
 }
 

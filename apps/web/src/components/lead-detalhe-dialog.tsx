@@ -158,7 +158,7 @@ function Ficha({
       </dl>
 
       {convertido && (
-        <div className="flex items-center justify-between gap-2 rounded-md border border-emerald-300 bg-emerald-50 p-2 text-xs text-emerald-900">
+        <div className="flex items-center justify-between gap-2 rounded-md border border-emerald-300 bg-emerald-50 p-2 text-xs text-emerald-900 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-100">
           <span className="inline-flex items-center gap-1.5">
             <UserCheck className="h-3.5 w-3.5" aria-hidden />
             Convertida em cliente{lead.cliente && `: ${lead.cliente.nome}`}

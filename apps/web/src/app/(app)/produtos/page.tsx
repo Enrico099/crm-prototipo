@@ -135,7 +135,7 @@ export default function ProdutosPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-muted-foreground">Rentab. a.a.</p>
-                    <p className="text-lg font-semibold text-emerald-700 leading-none mt-1 tabular-nums">
+                    <p className="text-lg font-semibold text-positivo leading-none mt-1 tabular-nums">
                       {fmt.pct(p.rentabilidadeAno)}
                     </p>
                   </div>

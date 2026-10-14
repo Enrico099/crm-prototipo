@@ -44,7 +44,7 @@ export function MovimentacoesRecentes({ clienteId }: { clienteId: string }) {
                     <span
                       className={cn(
                         "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
-                        saida ? "bg-orange-100 text-orange-800" : "bg-blue-100 text-blue-800",
+                        saida ? "bg-orange-100 text-orange-800 dark:bg-orange-400/15 dark:text-orange-200" : "bg-blue-100 text-blue-800 dark:bg-blue-400/15 dark:text-blue-200",
                       )}
                       aria-hidden
                     >
@@ -60,7 +60,7 @@ export function MovimentacoesRecentes({ clienteId }: { clienteId: string }) {
                         {m.observacao && ` · ${m.observacao}`}
                       </p>
                       {m.desenquadrada && (
-                        <Badge variant="outline" className="mt-1 gap-1 border-amber-300 text-[10px] text-amber-900">
+                        <Badge variant="outline" className="mt-1 gap-1 border-aviso-borda text-[10px] text-aviso-foreground">
                           <AlertTriangle className="h-3 w-3" aria-hidden />
                           Desenquadrada, com ciência do cliente
                         </Badge>
@@ -68,7 +68,7 @@ export function MovimentacoesRecentes({ clienteId }: { clienteId: string }) {
                     </div>
                   </div>
                   {/* Sinal em texto, não só na cor */}
-                  <p className="shrink-0 text-sm font-medium font-mono tabular-nums">
+                  <p className="shrink-0 text-sm font-medium tabular-nums">
                     {saida ? "−" : "+"} {fmt.brlPrecise(m.valor)}
                   </p>
                 </li>

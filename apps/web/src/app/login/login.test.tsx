@@ -59,6 +59,60 @@ describe("Login", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/Muitas tentativas/);
   });
 
+  describe("com verificação em duas etapas", () => {
+    const desafio = { mfaObrigatorio: true, desafio: "jwt-desafio" };
+
+    it("senha certa pede o código; o código abre a sessão e redireciona", async () => {
+      from = "/leads";
+      const { chamadas } = mockApi({
+        "POST /api/auth/login": desafio,
+        "POST /api/auth/mfa/verificar": { user: { id: "u1", nome: "João", email: "j", role: "ASSESSOR" } },
+      });
+      renderComQuery(<LoginPage />);
+      await preencherEEnviar();
+
+      const campo = await screen.findByLabelText("Código");
+      expect(replace).not.toHaveBeenCalled();
+      const user = userEvent.setup();
+      await user.type(campo, "123456");
+      await user.click(screen.getByRole("button", { name: "Verificar" }));
+
+      await waitFor(() => expect(replace).toHaveBeenCalledWith("/leads"));
+      expect(chamadas[1].body).toEqual({ desafio: "jwt-desafio", codigo: "123456" });
+    });
+
+    it("código errado mostra o erro e permanece na etapa", async () => {
+      mockApi({
+        "POST /api/auth/login": desafio,
+        "POST /api/auth/mfa/verificar": () => jsonResponse({ message: "Código inválido ou já utilizado." }, 401),
+      });
+      renderComQuery(<LoginPage />);
+      await preencherEEnviar();
+      const user = userEvent.setup();
+      await user.type(await screen.findByLabelText("Código"), "000000");
+      await user.click(screen.getByRole("button", { name: "Verificar" }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("Código inválido ou já utilizado.");
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it("permite usar um código de recuperação", async () => {
+      const { chamadas } = mockApi({
+        "POST /api/auth/login": desafio,
+        "POST /api/auth/mfa/verificar": { user: {} },
+      });
+      renderComQuery(<LoginPage />);
+      await preencherEEnviar();
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole("button", { name: "Perdi o acesso ao autenticador" }));
+      await user.type(screen.getByLabelText("Código de recuperação"), "abcde-fghjk");
+      await user.click(screen.getByRole("button", { name: "Verificar" }));
+
+      await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
+      expect(chamadas[1].body).toEqual({ desafio: "jwt-desafio", codigo: "abcde-fghjk" });
+    });
+  });
+
   it("valida o formulário antes de chamar a API", async () => {
     const { fetchMock } = mockApi({});
     renderComQuery(<LoginPage />);

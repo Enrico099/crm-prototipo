@@ -208,7 +208,7 @@ export default function LeadsPage() {
                           {perfilLabel[c.perfil]}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right font-medium font-mono text-sm tabular-nums">
+                      <TableCell className="text-right font-medium text-sm tabular-nums">
                         {fmt.brl(c.patrimonio)}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground hidden lg:table-cell">

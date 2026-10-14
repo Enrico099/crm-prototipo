@@ -24,6 +24,7 @@ const RELACOES: Record<string, Record<string, Rel>> = {
     aprovadoPor: ['one', 'user', 'aprovadoPorId'],
   },
   refreshToken: { user: ['one', 'user', 'userId'] },
+  codigoRecuperacaoMfa: { user: ['one', 'user', 'userId'] },
   auditoria: { user: ['one', 'user', 'userId'] },
   lead: {
     responsavel: ['one', 'user', 'responsavelId'],
@@ -42,7 +43,8 @@ const RELACOES: Record<string, Record<string, Rel>> = {
 const DECIMAIS = new Set(['patrimonio', 'valor', 'score', 'rentabilidadeAno', 'taxaAdmin', 'taxaPerformance', 'valorEstimado']);
 
 const DEFAULTS: Record<string, () => Record<string, unknown>> = {
-  user: () => ({ ativo: true, role: 'ASSESSOR', mfaEnabled: false, mfaSecret: null }),
+  user: () => ({ ativo: true, role: 'ASSESSOR', mfaEnabled: false, mfaSecret: null, mfaUltimoPasso: null, mfaAtivadoEm: null }),
+  codigoRecuperacaoMfa: () => ({ usadoEm: null, criadoEm: new Date() }),
   cliente: () => ({
     telefone: null, cidade: null, uf: null, perfil: 'MODERADO', status: 'PROSPECTO',
     responsavelId: null, ultimaInteracao: null, patrimonio: new Prisma.Decimal(0),
@@ -73,6 +75,7 @@ export class FakePrisma {
   readonly produto = this.tabela('produto');
   readonly recomendacao = this.tabela('recomendacao');
   readonly refreshToken = this.tabela('refreshToken');
+  readonly codigoRecuperacaoMfa = this.tabela('codigoRecuperacaoMfa');
   readonly auditoria = this.tabela('auditoria');
   readonly lead = this.tabela('lead');
   readonly estagioHistorico = this.tabela('estagioHistorico');
@@ -125,6 +128,14 @@ export class FakePrisma {
         db.checarUnicos(nome, row);
         rows().push(row);
         return db.projetar(nome, row, a);
+      },
+      createMany: async (a: { data: Record<string, unknown>[] }) => {
+        for (const data of a.data) {
+          const row = { id: novoId(), ...DEFAULTS[nome]?.(), ...db.normalizar(data) } as Row;
+          db.checarUnicos(nome, row);
+          rows().push(row);
+        }
+        return { count: a.data.length };
       },
       update: async (a: Args) => {
         const r = filtrar(a.where)[0];
@@ -190,6 +201,7 @@ export class FakePrisma {
       user: ['email'],
       cliente: ['email', 'cpfHash'],
       lead: ['clienteId'],
+      codigoRecuperacaoMfa: ['hash'],
     };
     for (const campo of unicos[nome] ?? []) {
       // Como no Postgres, NULL não conflita com NULL

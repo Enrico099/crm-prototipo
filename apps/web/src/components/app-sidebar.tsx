@@ -1,7 +1,7 @@
 "use client";
 
-import { Plus } from "lucide-react";
-import { EmBreveButton } from "@/components/demo";
+import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 import { Marca, NavLinks } from "@/components/nav-links";
 
 export function AppSidebar() {
@@ -10,25 +10,25 @@ export function AppSidebar() {
       className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 md:z-30 bg-sidebar text-sidebar-foreground"
       aria-label="Navegação principal"
     >
-      <div className="flex items-center px-5 h-16 border-b border-sidebar-border">
+      <div className="flex items-center px-6 h-[72px]">
         <Marca />
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Operação">
-        <p className="px-3 mb-2 text-[10px] uppercase tracking-[0.14em] text-sidebar-foreground/50 font-semibold">
-          Operação
-        </p>
+      <nav className="flex-1 overflow-y-auto px-3 pt-4 pb-6" aria-label="Operação">
         <NavLinks />
       </nav>
 
-      <div className="p-3 border-t border-sidebar-border space-y-3">
-        <EmBreveButton variant="default" className="w-full">
-          <Plus className="h-4 w-4" aria-hidden />
-          Nova carteira
-        </EmBreveButton>
-        <p className="px-2 py-1 text-[11px] text-sidebar-foreground/60">
-          Capital Elite · MVP v0.2
-        </p>
+      <div className="px-3 pb-4">
+        <Link
+          href="/conta/seguranca"
+          className="flex items-center gap-3 rounded-lg border border-sidebar-border px-3 py-2.5 text-xs text-sidebar-foreground/70 transition-colors hover:border-sidebar-primary/40 hover:text-sidebar-accent-foreground"
+        >
+          <ShieldCheck className="h-4 w-4 text-sidebar-primary" strokeWidth={1.75} aria-hidden />
+          <span>
+            Segurança da conta
+            <span className="block text-[10.5px] text-sidebar-foreground/45">Senha e verificação em duas etapas</span>
+          </span>
+        </Link>
       </div>
     </aside>
   );

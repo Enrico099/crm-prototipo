@@ -156,7 +156,7 @@ export default function SuitabilityFormPage({
                     {p.pergunta}
                   </CardTitle>
                   {selecionada && (
-                    <span className="text-emerald-700">
+                    <span className="text-positivo">
                       <Check className="h-4 w-4" aria-label="Respondida" />
                     </span>
                   )}

@@ -49,9 +49,32 @@ Browser ─→ Next.js (web, :3000)
 Registros fora do escopo respondem **404** (não revela que existem). Escrita sem `@Roles`
 explícito exige ADMIN ou ASSESSOR por padrão (`RolesGuard`).
 
+### Segurança da conta
+
+- **Verificação em duas etapas (MFA)** com aplicativo autenticador (TOTP: Google
+  Authenticator, Microsoft Authenticator, 1Password…), ativada em *Segurança da conta* (menu do
+  usuário). Com MFA, a senha certa só devolve um desafio de 5 minutos; a sessão abre com o
+  código de 6 dígitos ou com um dos 10 **códigos de recuperação** (uso único).
+- O segredo TOTP fica **cifrado** no banco (AES-256-GCM, `MFA_CHAVE`); dos códigos de
+  recuperação só o hash é guardado. Cada código TOTP vale uma vez, e 5 erros bloqueiam o
+  segundo fator por 15 minutos.
+- `MFA_OBRIGATORIO_PARA` (ex.: `ADMIN` ou `ADMIN,ASSESSOR,COMPLIANCE,READONLY`) torna o MFA
+  obrigatório por perfil. **A API aplica a regra**: sem MFA, esses perfis só acessam o necessário
+  para ativá-lo (403 `MFA_OBRIGATORIO` no resto), e não conseguem desativar.
+- **Troca de senha** em *Segurança da conta*: exige a senha atual, mínimo de 12 caracteres com
+  letras e números, e encerra as sessões nos outros dispositivos.
+- **Acesso perdido** (senha esquecida, ou celular e códigos perdidos): quem administra o servidor
+  redefine pelo terminal, o que encerra as sessões da pessoa e fica na auditoria:
+  ```bash
+  npm run usuario:redefinir -w @crm/api -- --email pessoa@empresa.com.br --senha     # nova senha
+  npm run usuario:redefinir -w @crm/api -- --email pessoa@empresa.com.br --sem-mfa   # reconfigurar MFA
+  ```
+  Ainda não há recuperação de senha por e-mail (depende de um provedor de e-mail).
+
 ## Setup local
 
-Requisitos: Node 20+ (testado com 24), Python 3.11+, PostgreSQL 16+ (ou Docker).
+Requisitos: Node 20+ (testado com 24), Python 3.11+ e um PostgreSQL 16+: local, via
+Docker ou [Supabase](#banco-no-supabase).
 
 ```bash
 # 1. Dependências
@@ -64,7 +87,7 @@ cd ../..
 # 2. Variáveis de ambiente (ver comentários no arquivo)
 cp .env.example apps/api/.env
 
-# 3. Banco (Postgres local via Docker, opcional)
+# 3. Banco (Postgres local via Docker, opcional; para Supabase veja abaixo)
 docker compose up -d postgres
 npm run prisma:migrate -w @crm/api     # dev; em servidores use: npx prisma migrate deploy
 npm run prisma:seed -w @crm/api        # APAGA e recria os dados de demonstração
@@ -78,6 +101,28 @@ npm run dev -w @crm/web                # http://localhost:3000
 > O seed **apaga todas as tabelas**. Em `NODE_ENV=production` ele se recusa a rodar,
 > a menos que `SEED_ALLOW_RESET=true`.
 
+### Banco no Supabase
+
+O Supabase é usado **só como PostgreSQL gerenciado**. Autenticação, escopo por assessor e
+auditoria continuam na API; não use Supabase Auth, RLS nem `supabase-js` no front.
+
+1. Crie o projeto na região **South America (São Paulo)**, porque o banco guarda dados
+   pessoais de clientes (LGPD).
+2. Em *Project Settings → Database → Connection string*, copie para `apps/api/.env`:
+   - `DATABASE_URL`: pooler em modo transação (porta **6543**), terminada em `?pgbouncer=true`;
+   - `DIRECT_URL`: conexão de sessão (porta **5432**), usada pelas migrações.
+3. Aplique o schema com `npx prisma migrate deploy` (em `apps/api`), não com `migrate dev`,
+   que pede um shadow database. O seed é opcional e **apaga os dados**.
+4. Em uso real, sem seed, crie o primeiro administrador (a senha é pedida no terminal, sem eco):
+   ```bash
+   npm run usuario:admin -w @crm/api -- --email voce@empresa.com.br --nome "Seu Nome"
+   ```
+   Mínimo de 12 caracteres, com letras e números. Não altera usuário existente e registra a
+   criação na auditoria.
+
+No plano gratuito o projeto pausa depois de 7 dias sem uso. CI e testes E2E continuam em um
+Postgres descartável: não aponte para o banco do Supabase.
+
 ### Credenciais de demonstração (somente ambiente local, criadas pelo seed)
 
 | Email | Perfil | Senha |
@@ -89,14 +134,14 @@ npm run dev -w @crm/web                # http://localhost:3000
 ### Variáveis obrigatórias em produção
 
 A API **não sobe** em `NODE_ENV=production` sem: `JWT_SECRET` e `JWT_REFRESH_SECRET`
-(32+ caracteres, diferentes), `CPF_HASH_SECRET` (32+) e `AI_ENGINE_TOKEN` (mesmo valor
+(32+ caracteres, diferentes), `CPF_HASH_SECRET` (32+), `MFA_CHAVE` (32+) e `AI_ENGINE_TOKEN` (mesmo valor
 configurado no motor Python). Detalhes em [`.env.example`](.env.example).
 
 ## Validação
 
 ```bash
 npm run lint        # ESLint (web)
-npm run typecheck   # tsc (api + web)
+npm run typecheck   # tsc (api + web + e2e)
 npm run build       # prisma generate + nest build · next build
 npm test            # Jest (api) + Vitest (web)
 
@@ -106,16 +151,35 @@ cd apps/ai-engine && pytest -q
 Os testes da API sobem a aplicação Nest real (guards, pipes, filtros, cookies) com o
 Prisma trocado por um banco em memória — não precisam de Postgres.
 
+### Testes E2E (Playwright)
+
+Testam o sistema como o usuário usa: navegador real, web em build de produção, API, motor
+Python e PostgreSQL. Cobrem login e sessão, escopo entre assessores e a jornada completa
+(cadastro → suitability → recomendação do motor → aprovação → aplicação).
+
+```bash
+npx playwright install chromium     # uma vez (em e2e/)
+npm run e2e                         # na raiz
+```
+
+- **O banco é apagado e recriado pelo seed** a cada execução. Por padrão o E2E usa o Postgres
+  local do docker compose (`E2E_DATABASE_URL` muda isso) e **se recusa a rodar contra um
+  banco que não seja local**, para nunca apagar o Supabase por engano.
+- Os serviços sobem sozinhos em portas próprias (web 3100, API 3433, motor 8100), sem conflito
+  com o ambiente de desenvolvimento. `E2E_PYTHON` aponta o Python do motor (padrão: `python`).
+- Relatório com trace e screenshot das falhas: `npm run e2e:report -w @crm/e2e`.
+
 O CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) roda em todo PR e push na
 `main`: os comandos acima, `npm audit --omit=dev` (falha em vulnerabilidade alta ou crítica
 de produção), as migrações do zero num PostgreSQL real com checagem de drift contra o
-`schema.prisma` e o seed, e o pytest do motor.
+`schema.prisma` e o seed, o pytest do motor e os testes E2E.
 
 ## Endpoints principais
 
 | Método | Rota | Quem |
 |---|---|---|
-| POST | `/api/auth/login` · `/refresh` · `/logout` | público |
+| POST | `/api/auth/login` · `/refresh` · `/logout` · `/mfa/verificar` (2ª etapa do login) | público |
+| GET/POST | `/api/auth/me` · `/senha` · `/mfa` · `/mfa/configurar` · `/mfa/ativar` · `/mfa/desativar` · `/mfa/codigos` | o próprio usuário |
 | GET | `/api/clientes` · `/:id` · `/:id/detalhado` | autenticado (escopo) |
 | POST/PATCH | `/api/clientes` · `/:id` | ADMIN, ASSESSOR (entrar/sair de INATIVO: só ADMIN) |
 | DELETE | `/api/clientes/:id` (inativa — não apaga) | ADMIN |

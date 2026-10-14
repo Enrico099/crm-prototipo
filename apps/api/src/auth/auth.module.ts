@@ -4,6 +4,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { LoginThrottleService } from './login-throttle.service';
+import { MfaController } from './mfa/mfa.controller';
+import { MfaService } from './mfa/mfa.service';
 
 @Module({
   imports: [
@@ -17,8 +19,8 @@ import { LoginThrottleService } from './login-throttle.service';
       }),
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, LoginThrottleService],
+  controllers: [AuthController, MfaController],
+  providers: [AuthService, LoginThrottleService, MfaService],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

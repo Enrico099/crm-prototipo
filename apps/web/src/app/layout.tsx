@@ -1,10 +1,21 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
-const inter = Inter({
+const sans = Geist({
   variable: "--font-sans",
+  subsets: ["latin"],
+});
+
+const mono = Geist_Mono({
+  variable: "--font-mono",
+  subsets: ["latin"],
+});
+
+const display = Instrument_Serif({
+  variable: "--font-display",
+  weight: "400",
   subsets: ["latin"],
 });
 
@@ -19,7 +30,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${inter.variable} h-full antialiased`}>
+    // suppressHydrationWarning: o next-themes ajusta a classe do <html> antes da hidratação
+    <html
+      lang="pt-BR"
+      className={`${sans.variable} ${mono.variable} ${display.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
       <body
         className="min-h-full bg-background text-foreground"
         suppressHydrationWarning

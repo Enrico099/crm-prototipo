@@ -8,6 +8,7 @@ const prodOk = {
   JWT_SECRET: segredo('a'),
   JWT_REFRESH_SECRET: segredo('b'),
   CPF_HASH_SECRET: segredo('c'),
+  MFA_CHAVE: segredo('d'),
   AI_ENGINE_TOKEN: 'token-servico',
 };
 
@@ -28,6 +29,8 @@ describe('validateEnv', () => {
     ['segredos iguais', { JWT_REFRESH_SECRET: segredo('a') }],
     ['sem CPF_HASH_SECRET', { CPF_HASH_SECRET: undefined }],
     ['sem AI_ENGINE_TOKEN', { AI_ENGINE_TOKEN: undefined }],
+    ['sem MFA_CHAVE', { MFA_CHAVE: undefined }],
+    ['perfil inválido em MFA_OBRIGATORIO_PARA', { MFA_OBRIGATORIO_PARA: 'ADMIN,GERENTE' }],
   ])('recusa produção com %s', (_nome, override) => {
     expect(() => validateEnv({ ...prodOk, ...override })).toThrow(/Configuração inválida/);
   });
@@ -43,6 +46,14 @@ describe('validateEnv', () => {
 
   it('exige DATABASE_URL e segredos JWT em qualquer ambiente', () => {
     expect(() => validateEnv({})).toThrow(/DATABASE_URL|JWT_SECRET/);
+  });
+
+  it('lê os perfis com MFA obrigatório (vazio = nenhum)', () => {
+    expect(validateEnv({ ...prodOk, MFA_OBRIGATORIO_PARA: ' admin, Compliance ' }).MFA_OBRIGATORIO_PARA).toEqual([
+      'ADMIN',
+      'COMPLIANCE',
+    ]);
+    expect(validateEnv(prodOk).MFA_OBRIGATORIO_PARA).toEqual([]);
   });
 
   it('separa WEB_ORIGIN por vírgula', () => {

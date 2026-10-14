@@ -11,6 +11,18 @@ export type AuthUser = {
   role: UserRole;
 };
 
+/** Login: sessão aberta, ou desafio do segundo fator quando a conta tem MFA */
+export type LoginResposta =
+  | { user: AuthUser; mfaObrigatorio?: undefined }
+  | { mfaObrigatorio: true; desafio: string };
+
+export type MfaStatus = {
+  ativo: boolean;
+  ativadoEm: string | null;
+  obrigatorio: boolean;
+  codigosRestantes: number;
+};
+
 export type Page<T> = {
   data: T[];
   meta: {

@@ -7,52 +7,14 @@
 // Fora de um terminal interativo, vem da variável ADMIN_SENHA.
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import readline from 'node:readline';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
-
-const SENHA_MIN = 12;
+import { lerSenhaNova, nomeDoBanco } from './terminal';
 
 const entradaSchema = z.object({
   email: z.string().trim().toLowerCase().email('E-mail inválido').max(254),
   nome: z.string().trim().min(2, 'Informe o nome').max(120),
 });
-
-// O bcrypt só considera os primeiros 72 bytes
-const senhaSchema = z
-  .string()
-  .min(SENHA_MIN, `A senha precisa ter pelo menos ${SENHA_MIN} caracteres`)
-  .refine((s) => Buffer.byteLength(s) <= 72, 'A senha passa de 72 bytes')
-  .refine((s) => /[a-zA-Z]/.test(s) && /\d/.test(s), 'Use letras e números');
-
-function perguntarOculto(pergunta: string): Promise<string> {
-  return new Promise((resolve) => {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-    let mudo = false;
-    // Silencia o eco do que é digitado depois da pergunta
-    (rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput = (s: string) => {
-      if (!mudo) process.stdout.write(s);
-    };
-    rl.question(pergunta, (resposta) => {
-      rl.close();
-      process.stdout.write('\n');
-      resolve(resposta);
-    });
-    mudo = true;
-  });
-}
-
-async function lerSenha(): Promise<string> {
-  if (!process.stdin.isTTY) {
-    const senha = process.env.ADMIN_SENHA;
-    if (!senha) throw new Error('Sem terminal interativo: defina a senha em ADMIN_SENHA.');
-    return senha;
-  }
-  const senha = await perguntarOculto('Senha: ');
-  const confirmacao = await perguntarOculto('Confirme a senha: ');
-  if (senha !== confirmacao) throw new Error('As senhas não conferem.');
-  return senha;
-}
 
 async function main() {
   const { values } = parseArgs({
@@ -73,10 +35,7 @@ async function main() {
       throw new Error(`Já existe um usuário com o e-mail ${email}. Nada foi alterado.`);
     }
 
-    const senha = senhaSchema.safeParse(await lerSenha());
-    if (!senha.success) throw new Error(senha.error.issues.map((i) => i.message).join('; '));
-
-    const senhaHash = await bcrypt.hash(senha.data, 10);
+    const senhaHash = await bcrypt.hash(await lerSenhaNova('ADMIN_SENHA'), 10);
     const user = await prisma.$transaction(async (tx) => {
       const criado = await tx.user.create({ data: { email, nome, senhaHash, role: 'ADMIN' } });
       await tx.auditoria.create({
@@ -90,8 +49,7 @@ async function main() {
       return criado;
     });
 
-    const banco = new URL(process.env.DATABASE_URL ?? 'postgresql://desconhecido').hostname;
-    console.log(`Admin criado: ${user.nome} <${user.email}> no banco ${banco}.`);
+    console.log(`Admin criado: ${user.nome} <${user.email}> no banco ${nomeDoBanco()}.`);
   } finally {
     await prisma.$disconnect();
   }

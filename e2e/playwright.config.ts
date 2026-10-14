@@ -60,6 +60,9 @@ export default defineConfig({
         JWT_SECRET: 'segredo-e2e-access-0123456789abcdef0123',
         JWT_REFRESH_SECRET: 'segredo-e2e-refresh-0123456789abcdef012',
         CPF_HASH_SECRET: 'dev-somente-local-cpf-hash-secret',
+        MFA_CHAVE: 'chave-mfa-somente-e2e-0123456789abcdef',
+        // Explícito: senão a API completaria com o apps/api/.env local
+        MFA_OBRIGATORIO_PARA: '',
         AI_ENGINE_URL: MOTOR_URL,
         AI_ENGINE_TOKEN,
       },

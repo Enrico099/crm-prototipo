@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { expect, type Page } from '@playwright/test';
 
 /** Portas próprias do E2E (as de desenvolvimento são 3000/3333/8000) */
@@ -37,6 +38,22 @@ export function gerarCpf(): string {
 
 /** Sufixo curto para nomes e e-mails únicos por execução */
 export const sufixo = () => Date.now().toString(36);
+
+/**
+ * Código TOTP (RFC 6238) como o aplicativo autenticador geraria. `passos`
+ * desloca a janela de 30 s (a API aceita ±1 e não aceita o mesmo passo duas vezes).
+ */
+export function codigoTotp(segredoBase32: string, passos = 0): string {
+  const alfabeto = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = '';
+  for (const ch of segredoBase32.replace(/\s/g, '')) bits += alfabeto.indexOf(ch).toString(2).padStart(5, '0');
+  const segredo = Buffer.from(bits.match(/.{8}/g)!.map((b) => parseInt(b, 2)));
+  const contador = Buffer.alloc(8);
+  contador.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30_000) + passos));
+  const h = createHmac('sha1', segredo).update(contador).digest();
+  const desloc = h[h.length - 1] & 0xf;
+  return ((h.readUInt32BE(desloc) & 0x7fffffff) % 1_000_000).toString().padStart(6, '0');
+}
 
 export async function esperarToast(page: Page, texto: string | RegExp) {
   await expect(page.locator('[data-sonner-toast]').filter({ hasText: texto }).first()).toBeVisible();

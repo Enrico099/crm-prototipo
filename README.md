@@ -49,6 +49,28 @@ Browser ─→ Next.js (web, :3000)
 Registros fora do escopo respondem **404** (não revela que existem). Escrita sem `@Roles`
 explícito exige ADMIN ou ASSESSOR por padrão (`RolesGuard`).
 
+### Segurança da conta
+
+- **Verificação em duas etapas (MFA)** com aplicativo autenticador (TOTP: Google
+  Authenticator, Microsoft Authenticator, 1Password…), ativada em *Segurança da conta* (menu do
+  usuário). Com MFA, a senha certa só devolve um desafio de 5 minutos; a sessão abre com o
+  código de 6 dígitos ou com um dos 10 **códigos de recuperação** (uso único).
+- O segredo TOTP fica **cifrado** no banco (AES-256-GCM, `MFA_CHAVE`); dos códigos de
+  recuperação só o hash é guardado. Cada código TOTP vale uma vez, e 5 erros bloqueiam o
+  segundo fator por 15 minutos.
+- `MFA_OBRIGATORIO_PARA` (ex.: `ADMIN` ou `ADMIN,ASSESSOR,COMPLIANCE,READONLY`) torna o MFA
+  obrigatório por perfil. **A API aplica a regra**: sem MFA, esses perfis só acessam o necessário
+  para ativá-lo (403 `MFA_OBRIGATORIO` no resto), e não conseguem desativar.
+- **Troca de senha** em *Segurança da conta*: exige a senha atual, mínimo de 12 caracteres com
+  letras e números, e encerra as sessões nos outros dispositivos.
+- **Acesso perdido** (senha esquecida, ou celular e códigos perdidos): quem administra o servidor
+  redefine pelo terminal, o que encerra as sessões da pessoa e fica na auditoria:
+  ```bash
+  npm run usuario:redefinir -w @crm/api -- --email pessoa@empresa.com.br --senha     # nova senha
+  npm run usuario:redefinir -w @crm/api -- --email pessoa@empresa.com.br --sem-mfa   # reconfigurar MFA
+  ```
+  Ainda não há recuperação de senha por e-mail (depende de um provedor de e-mail).
+
 ## Setup local
 
 Requisitos: Node 20+ (testado com 24), Python 3.11+ e um PostgreSQL 16+: local, via
@@ -112,7 +134,7 @@ Postgres descartável: não aponte para o banco do Supabase.
 ### Variáveis obrigatórias em produção
 
 A API **não sobe** em `NODE_ENV=production` sem: `JWT_SECRET` e `JWT_REFRESH_SECRET`
-(32+ caracteres, diferentes), `CPF_HASH_SECRET` (32+) e `AI_ENGINE_TOKEN` (mesmo valor
+(32+ caracteres, diferentes), `CPF_HASH_SECRET` (32+), `MFA_CHAVE` (32+) e `AI_ENGINE_TOKEN` (mesmo valor
 configurado no motor Python). Detalhes em [`.env.example`](.env.example).
 
 ## Validação
@@ -156,7 +178,8 @@ de produção), as migrações do zero num PostgreSQL real com checagem de drift
 
 | Método | Rota | Quem |
 |---|---|---|
-| POST | `/api/auth/login` · `/refresh` · `/logout` | público |
+| POST | `/api/auth/login` · `/refresh` · `/logout` · `/mfa/verificar` (2ª etapa do login) | público |
+| GET/POST | `/api/auth/me` · `/senha` · `/mfa` · `/mfa/configurar` · `/mfa/ativar` · `/mfa/desativar` · `/mfa/codigos` | o próprio usuário |
 | GET | `/api/clientes` · `/:id` · `/:id/detalhado` | autenticado (escopo) |
 | POST/PATCH | `/api/clientes` · `/:id` | ADMIN, ASSESSOR (entrar/sair de INATIVO: só ADMIN) |
 | DELETE | `/api/clientes/:id` (inativa — não apaga) | ADMIN |

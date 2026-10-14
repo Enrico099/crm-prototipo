@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, LogOut, Menu, Search } from "lucide-react";
+import { Bell, LogOut, Menu, Search, ShieldCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -141,8 +142,10 @@ export function AppHeader() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem disabled>Perfil (em breve)</DropdownMenuItem>
-              <DropdownMenuItem disabled>Configurações (em breve)</DropdownMenuItem>
+              <DropdownMenuItem render={<Link href="/conta/seguranca" />}>
+                <ShieldCheck className="h-4 w-4" aria-hidden />
+                Segurança da conta
+              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem

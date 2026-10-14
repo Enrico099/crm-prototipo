@@ -8,7 +8,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import type { ContextoRequisicao } from '../common/request-context';
 import { LoginThrottleService } from './login-throttle.service';
-import type { LoginDto } from './dto/auth.schemas';
+import { MfaService, erroDeCampo } from './mfa/mfa.service';
+import type { AlterarSenhaDto, LoginDto } from './dto/auth.schemas';
 
 export type AuthPayload = {
   id: string;
@@ -27,6 +28,7 @@ type RefreshClaims = { id: string; jti: string; fam: string; type: string };
 
 export const ACCESS_TTL_S = 15 * 60; // 15 min
 export const REFRESH_TTL_S = 7 * 24 * 60 * 60; // 7 dias
+const DESAFIO_MFA_TTL_S = 5 * 60;
 
 // Se dois pedidos de refresh concorrentes (duas abas) usam o mesmo token, o
 // segundo chega com o token já rotacionado. Dentro dessa janela isso é tratado
@@ -45,6 +47,7 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly throttle: LoginThrottleService,
     private readonly auditoria: AuditoriaService,
+    private readonly mfa: MfaService,
   ) {}
 
   async validateLogin(dto: LoginDto, ctx?: ContextoRequisicao): Promise<User> {
@@ -68,14 +71,102 @@ export class AuthService {
     }
 
     this.throttle.registrarSucesso(dto.email);
+    // Com MFA, o login só se completa (e é auditado) depois do segundo fator
+    if (!user.mfaEnabled) {
+      await this.auditoria.registrar({
+        acao: 'LOGIN',
+        entidade: 'User',
+        entidadeId: user.id,
+        userId: user.id,
+        contexto: ctx,
+      });
+    }
+    return user;
+  }
+
+  /**
+   * Senha certa de quem tem MFA: em vez de sessão, um desafio curto e assinado
+   * que só serve para /auth/mfa/verificar. Pode ser reapresentado nos 5 minutos,
+   * mas cada tentativa exige um código ainda não usado e conta no limite do MFA.
+   */
+  async emitirDesafioMfa(user: User): Promise<string> {
+    return this.jwt.signAsync(
+      { id: user.id, type: 'mfa' },
+      {
+        secret: this.config.get<string>('JWT_SECRET'),
+        expiresIn: DESAFIO_MFA_TTL_S,
+        algorithm: 'HS256',
+      },
+    );
+  }
+
+  /** 2ª etapa do login: desafio válido + código do autenticador ou de recuperação. */
+  async concluirLoginMfa(desafio: string, codigo: string, ctx?: ContextoRequisicao): Promise<User> {
+    let id: string;
+    try {
+      const p = await this.jwt.verifyAsync<{ id: string; type: string }>(desafio, {
+        secret: this.config.get<string>('JWT_SECRET'),
+        algorithms: ['HS256'],
+      });
+      if (p.type !== 'mfa' || !p.id) throw new Error('tipo');
+      id = p.id;
+    } catch {
+      throw new UnauthorizedException('A verificação expirou. Entre com e-mail e senha de novo.');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user || !user.ativo || !user.mfaEnabled) {
+      throw new UnauthorizedException('A verificação expirou. Entre com e-mail e senha de novo.');
+    }
+
+    const metodo = await this.mfa.verificar(user, codigo, ctx);
     await this.auditoria.registrar({
       acao: 'LOGIN',
       entidade: 'User',
       entidadeId: user.id,
       userId: user.id,
+      diff: { mfa: metodo },
       contexto: ctx,
     });
     return user;
+  }
+
+  /** Troca a senha e encerra todas as sessões; o chamador abre uma nova. */
+  async alterarSenha(userId: string, dto: AlterarSenhaDto, ctx?: ContextoRequisicao): Promise<User> {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (!(await bcrypt.compare(dto.senhaAtual, user.senhaHash))) {
+      throw erroDeCampo('senhaAtual', 'Senha atual incorreta.');
+    }
+    if (await bcrypt.compare(dto.novaSenha, user.senhaHash)) {
+      throw erroDeCampo('novaSenha', 'A nova senha precisa ser diferente da atual.');
+    }
+
+    const senhaHash = await this.hashPassword(dto.novaSenha);
+    const atualizado = await this.prisma.$transaction(async (tx) => {
+      const u = await tx.user.update({ where: { id: userId }, data: { senhaHash } });
+      await this.auditoria.registrarEm(tx, {
+        acao: 'ALTERACAO_SENHA',
+        entidade: 'User',
+        entidadeId: userId,
+        userId,
+        contexto: ctx,
+      });
+      return u;
+    });
+    await this.encerrarSessoes(userId);
+    return atualizado;
+  }
+
+  buscarUsuario(userId: string): Promise<User> {
+    return this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  }
+
+  /** Revoga todas as sessões do usuário (troca de senha, ativação de MFA). */
+  async encerrarSessoes(userId: string) {
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revogadoEm: null },
+      data: { revogadoEm: new Date() },
+    });
   }
 
   /** Emite access + refresh. Sem familiaId abre uma nova sessão (login). */
@@ -105,8 +196,10 @@ export class AuthService {
       });
     }
 
+    // "mfa" diz se a conta tem MFA ativo (o login dela exigiu o segundo fator):
+    // o guard usa isso para aplicar MFA_OBRIGATORIO_PARA
     const accessToken = await this.jwt.signAsync(
-      { ...payload, type: 'access' },
+      { ...payload, mfa: user.mfaEnabled, type: 'access' },
       {
         secret: this.config.get<string>('JWT_SECRET'),
         expiresIn: ACCESS_TTL_S,

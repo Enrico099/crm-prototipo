@@ -413,11 +413,49 @@ simultâneos de 30% do saldo → 3 aceitos, 3 recusados, saldo nunca negativo**,
 **Validação**: E2E 11 de 11 em duas execuções seguidas (Postgres 16 portátil, Python 3.12
 isolado). Migrações + checagem de drift + seed com `directUrl`. API 146, web 74, motor 44.
 
+## Rodada 6 — MFA, troca de senha e recuperação de acesso (14/10/2026)
+
+Contexto: o banco foi para o Supabase em uso real (sem dados de demonstração). Para o primeiro
+acesso há o script `usuario:admin`.
+
+**MFA (TOTP)**
+- Implementado com `node:crypto` (RFC 6238/4226, sem dependência nova), validado contra os
+  vetores oficiais das RFCs. Segredo de 160 bits **cifrado** (AES-256-GCM com `MFA_CHAVE`),
+  tolerância de ±30 s, e cada passo de 30 s aceito **uma única vez** (atualização condicional,
+  também sob concorrência).
+- Login em duas etapas: com MFA, a senha certa devolve um desafio JWT de 5 min (que não serve
+  como token de acesso) e nenhum cookie; `/auth/mfa/verificar` abre a sessão. 5 erros
+  bloqueiam o segundo fator por 15 min. Falhas, uso de código de recuperação, ativação e
+  desativação vão para a auditoria (novas ações).
+- 10 códigos de recuperação de uso único; só o HMAC é guardado. Regeneráveis.
+- Ativar MFA encerra as outras sessões (abertas sem segundo fator). Desativar exige senha + código.
+- `MFA_OBRIGATORIO_PARA` torna o MFA obrigatório por perfil, **aplicado pela API** (guard):
+  sem MFA, só as rotas de ativação respondem; o resto dá 403 `MFA_OBRIGATORIO` e o front leva
+  para *Segurança da conta*.
+
+**Senha e recuperação**
+- Troca de senha pelo próprio usuário (senha atual + política de 12 caracteres com letras e
+  números), encerrando as outras sessões.
+- `usuario:redefinir` (terminal): nova senha e/ou desativa o MFA, encerra as sessões e audita.
+  É a recuperação de último recurso até existir recuperação por e-mail.
+
+**Correção**: desde o script `criar-admin` (Rodada 5), o build incluía `prisma/*.ts` e gerava
+`dist/src/main.js`, então `npm run start` quebraria em produção. O `tsconfig.build.json` passou
+a excluir `prisma/`; o job E2E (que sobe a API compilada) pega uma regressão.
+
+**Banco**: migração `mfa_e_senha` (só adiciona: 2 colunas, 1 tabela, 6 valores no enum de
+auditoria), aplicada no Postgres local e no **Supabase**, sem drift.
+
+**Validação**: API 180 testes (+31), web 82 (+8), E2E 12 de 12 em duas execuções (o novo
+cenário ativa o MFA pela tela e entra com o código e com um código de recuperação).
+
 ## Pendências
 
 | Pendência | Motivo de não ter sido feita | Esforço |
 |---|---|---|
-| Rate limit e revogação em store compartilhado (Redis) | Infra; hoje vale por instância | P |
+| Rate limit e revogação em store compartilhado (Redis) | Infra; hoje vale por instância (inclui o limite do MFA) | P |
+| Recuperação de senha por e-mail | Precisa escolher um provedor de e-mail; hoje é pelo script `usuario:redefinir` | P |
+| Tela de gestão de usuários (criar, desativar, mudar perfil) | Hoje só por script; o primeiro admin vem de `usuario:admin` | M |
 | Re-hash de CPFs legados (SHA-256 puro) | Precisa do CPF em claro, que o sistema não guarda; requer recadastro ou importação da fonte | M |
 | Marcação a mercado (cotações) e rentabilidade da carteira | Precisa de fonte de preços; hoje tudo é a custo (Rodada 4) | M |
 | Limite FGC, custos de corretagem/come-cotas | Melhorias de domínio | M |
@@ -434,7 +472,7 @@ isolado). Migrações + checagem de drift + seed com `directUrl`. API 146, web 7
    avaliação de impacto (RIPD). Os CPFs legados estão em hash fraco.
 3. **Modelo de ML**: treinado em dados sintéticos. Usar só depois de treinar com decisões
    reais, validar e monitorar viés; até lá, rodar só com regras.
-4. **Segurança**: sem MFA, sem recuperação de senha, sem pentest, rate limit em memória,
+4. **Segurança**: ~~sem MFA~~ (Rodada 6), sem recuperação de senha por e-mail, sem pentest, rate limit em memória,
    ~~Nest 10 com vulnerabilidades conhecidas~~ (Rodada 3: Nest 11, 0 vulnerabilidades de produção).
 5. **Operação**: CI existe (Rodada 3), mas sem CD, sem backups e restore testados, sem métricas/alertas/tracing
    (só logs estruturados e health checks), sem ambiente de homologação.
@@ -448,7 +486,7 @@ isolado). Migrações + checagem de drift + seed com `directUrl`. API 146, web 7
 3. ~~Migração NestJS 11~~ (Rodada 3) e store compartilhado (Redis) para rate limit.
 4. Pacote LGPD: retenção, direitos do titular, re-hash de CPFs, RIPD.
 5. Observabilidade: métricas, alertas, tracing com o `requestId` já propagado; backups testados.
-6. MFA para todos os perfis e recuperação de senha.
+6. ~~MFA e troca de senha~~ (Rodada 6). Falta recuperação de senha por e-mail.
 7. ~~Telas de cadastro (cliente, lead, produto)~~ (Rodada 2) e ~~histórico de carteira (AUM/captação reais)~~ (Rodada 4, a custo).
 8. ~~Teste E2E de navegador~~ (Rodada 5) e pentest externo antes do go-live.
 9. Criar o projeto Supabase (região São Paulo) e validar migrações e API pelo pooler.

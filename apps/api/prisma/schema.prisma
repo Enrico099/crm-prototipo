@@ -34,7 +34,11 @@ model User {
   ativo     Boolean  @default(true)
 
   mfaEnabled Boolean @default(false)
+  // Segredo TOTP cifrado (AES-256-GCM, ver src/auth/mfa/cifra.ts), nunca em claro
   mfaSecret  String?
+  // Último passo TOTP aceito: o mesmo código não vale duas vezes
+  mfaUltimoPasso Int?
+  mfaAtivadoEm   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -47,6 +51,7 @@ model User {
   suitabilities Suitability[]  @relation("SuitabilityAplicador")
   refreshTokens RefreshToken[]
   movimentacoes Movimentacao[] @relation("MovimentacaoRegistradaPor")
+  codigosRecuperacao CodigoRecuperacaoMfa[]
 
   // email já é @unique (índice implícito) — o @@index([email]) antigo era redundante
   @@map("users")
@@ -73,6 +78,20 @@ model RefreshToken {
   @@index([familiaId])
   @@index([expiraEm])
   @@map("refresh_tokens")
+}
+
+// Códigos de recuperação do MFA (uso único). Só o hash é guardado; os códigos
+// em claro aparecem uma única vez, na ativação ou na regeneração.
+model CodigoRecuperacaoMfa {
+  id       String    @id @default(cuid())
+  userId   String
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hash     String    @unique
+  usadoEm  DateTime?
+  criadoEm DateTime  @default(now())
+
+  @@index([userId])
+  @@map("mfa_codigos_recuperacao")
 }
 
 // ============================================================
@@ -410,6 +429,12 @@ enum AcaoAuditoria {
   GERACAO_RECOMENDACAO
   APLICACAO_SUITABILITY
   REUSO_REFRESH_TOKEN
+  ALTERACAO_SENHA
+  MFA_ATIVACAO
+  MFA_DESATIVACAO
+  MFA_FALHA
+  MFA_USO_RECUPERACAO
+  REDEFINICAO_ACESSO
 }
 
 model Auditoria {

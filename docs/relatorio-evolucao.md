@@ -387,6 +387,32 @@ de drift, invariante do seed (39 movimentações), AUM e série batendo com o ba
 simultâneos de 30% do saldo → 3 aceitos, 3 recusados, saldo nunca negativo**, invariante mantida
 (13 de 13). Teste de fumaça geral: 31 de 31.
 
+## Rodada 5 — Supabase e testes E2E (14/10/2026)
+
+**Banco no Supabase (preparação)**
+- O `schema.prisma` ganhou `directUrl`: a API usa `DATABASE_URL` (no Supabase, o pooler em
+  modo transação, porta 6543, `?pgbouncer=true`) e as migrações usam `DIRECT_URL` (conexão de
+  sessão, porta 5432). No Postgres local as duas são iguais.
+- O Supabase entra **só como PostgreSQL gerenciado**. Supabase Auth, RLS e `supabase-js` não
+  foram adotados: substituiriam a autenticação, o escopo por assessor e a auditoria, que já
+  estão prontos e testados.
+- Passo a passo no README (região São Paulo por causa da LGPD; `migrate deploy`, não
+  `migrate dev`). **Falta criar o projeto e validar contra ele**: o pooler não foi testado.
+
+**Testes E2E (Playwright)**
+- Novo workspace `e2e/`. Navegador real contra os três serviços reais (web em build de
+  produção, API compilada, motor Python) e PostgreSQL, em portas próprias (3100/3433/8100).
+- 11 casos: login com redirecionamento de volta, senha errada, logout que encerra a sessão,
+  escopo (assessor não acha nem abre pelo link um cliente de outro assessor; admin vê todos),
+  resgate acima do saldo barrado e a **jornada completa**: cadastro → suitability (perfil
+  arrojado) → recomendação do motor → aprovação → aplicação, que ativa a recomendação e o cliente.
+- Antes de rodar, migrações e seed; o script **se recusa a apagar um banco que não seja local**
+  (`E2E_PERMITIR_BANCO_REMOTO=true` para forçar).
+- Job `e2e` novo na CI, com Postgres e Python; o relatório do Playwright vira artefato quando falha.
+
+**Validação**: E2E 11 de 11 em duas execuções seguidas (Postgres 16 portátil, Python 3.12
+isolado). Migrações + checagem de drift + seed com `directUrl`. API 146, web 74, motor 44.
+
 ## Pendências
 
 | Pendência | Motivo de não ter sido feita | Esforço |
@@ -396,7 +422,6 @@ simultâneos de 30% do saldo → 3 aceitos, 3 recusados, saldo nunca negativo**,
 | Marcação a mercado (cotações) e rentabilidade da carteira | Precisa de fonte de preços; hoje tudo é a custo (Rodada 4) | M |
 | Limite FGC, custos de corretagem/come-cotas | Melhorias de domínio | M |
 | CD (deploy automatizado) e ambiente de homologação | CI existe (Rodada 3); falta a infraestrutura de destino | M |
-| Teste E2E de navegador (Playwright) | Não fazia parte desta rodada | P |
 | Prisma 5 → 6/7, TypeScript 7, ESLint 10 | Majors; sem necessidade imediata | M |
 
 ## Riscos para produção
@@ -425,7 +450,8 @@ simultâneos de 30% do saldo → 3 aceitos, 3 recusados, saldo nunca negativo**,
 5. Observabilidade: métricas, alertas, tracing com o `requestId` já propagado; backups testados.
 6. MFA para todos os perfis e recuperação de senha.
 7. ~~Telas de cadastro (cliente, lead, produto)~~ (Rodada 2) e ~~histórico de carteira (AUM/captação reais)~~ (Rodada 4, a custo).
-8. Teste E2E de navegador e pentest externo antes do go-live.
+8. ~~Teste E2E de navegador~~ (Rodada 5) e pentest externo antes do go-live.
+9. Criar o projeto Supabase (região São Paulo) e validar migrações e API pelo pooler.
 
 ### Estimativa de esforço para produção
 

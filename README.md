@@ -51,7 +51,8 @@ explícito exige ADMIN ou ASSESSOR por padrão (`RolesGuard`).
 
 ## Setup local
 
-Requisitos: Node 20+ (testado com 24), Python 3.11+, PostgreSQL 16+ (ou Docker).
+Requisitos: Node 20+ (testado com 24), Python 3.11+ e um PostgreSQL 16+: local, via
+Docker ou [Supabase](#banco-no-supabase).
 
 ```bash
 # 1. Dependências
@@ -64,7 +65,7 @@ cd ../..
 # 2. Variáveis de ambiente (ver comentários no arquivo)
 cp .env.example apps/api/.env
 
-# 3. Banco (Postgres local via Docker, opcional)
+# 3. Banco (Postgres local via Docker, opcional; para Supabase veja abaixo)
 docker compose up -d postgres
 npm run prisma:migrate -w @crm/api     # dev; em servidores use: npx prisma migrate deploy
 npm run prisma:seed -w @crm/api        # APAGA e recria os dados de demonstração
@@ -77,6 +78,22 @@ npm run dev -w @crm/web                # http://localhost:3000
 
 > O seed **apaga todas as tabelas**. Em `NODE_ENV=production` ele se recusa a rodar,
 > a menos que `SEED_ALLOW_RESET=true`.
+
+### Banco no Supabase
+
+O Supabase é usado **só como PostgreSQL gerenciado**. Autenticação, escopo por assessor e
+auditoria continuam na API; não use Supabase Auth, RLS nem `supabase-js` no front.
+
+1. Crie o projeto na região **South America (São Paulo)**, porque o banco guarda dados
+   pessoais de clientes (LGPD).
+2. Em *Project Settings → Database → Connection string*, copie para `apps/api/.env`:
+   - `DATABASE_URL`: pooler em modo transação (porta **6543**), terminada em `?pgbouncer=true`;
+   - `DIRECT_URL`: conexão de sessão (porta **5432**), usada pelas migrações.
+3. Aplique o schema com `npx prisma migrate deploy` (em `apps/api`), não com `migrate dev`,
+   que pede um shadow database. O seed é opcional e **apaga os dados**.
+
+No plano gratuito o projeto pausa depois de 7 dias sem uso. CI e testes E2E continuam em um
+Postgres descartável: não aponte para o banco do Supabase.
 
 ### Credenciais de demonstração (somente ambiente local, criadas pelo seed)
 
@@ -96,7 +113,7 @@ configurado no motor Python). Detalhes em [`.env.example`](.env.example).
 
 ```bash
 npm run lint        # ESLint (web)
-npm run typecheck   # tsc (api + web)
+npm run typecheck   # tsc (api + web + e2e)
 npm run build       # prisma generate + nest build · next build
 npm test            # Jest (api) + Vitest (web)
 
@@ -106,10 +123,28 @@ cd apps/ai-engine && pytest -q
 Os testes da API sobem a aplicação Nest real (guards, pipes, filtros, cookies) com o
 Prisma trocado por um banco em memória — não precisam de Postgres.
 
+### Testes E2E (Playwright)
+
+Testam o sistema como o usuário usa: navegador real, web em build de produção, API, motor
+Python e PostgreSQL. Cobrem login e sessão, escopo entre assessores e a jornada completa
+(cadastro → suitability → recomendação do motor → aprovação → aplicação).
+
+```bash
+npx playwright install chromium     # uma vez (em e2e/)
+npm run e2e                         # na raiz
+```
+
+- **O banco é apagado e recriado pelo seed** a cada execução. Por padrão o E2E usa o Postgres
+  local do docker compose (`E2E_DATABASE_URL` muda isso) e **se recusa a rodar contra um
+  banco que não seja local**, para nunca apagar o Supabase por engano.
+- Os serviços sobem sozinhos em portas próprias (web 3100, API 3433, motor 8100), sem conflito
+  com o ambiente de desenvolvimento. `E2E_PYTHON` aponta o Python do motor (padrão: `python`).
+- Relatório com trace e screenshot das falhas: `npm run e2e:report -w @crm/e2e`.
+
 O CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) roda em todo PR e push na
 `main`: os comandos acima, `npm audit --omit=dev` (falha em vulnerabilidade alta ou crítica
 de produção), as migrações do zero num PostgreSQL real com checagem de drift contra o
-`schema.prisma` e o seed, e o pytest do motor.
+`schema.prisma` e o seed, o pytest do motor e os testes E2E.
 
 ## Endpoints principais
 

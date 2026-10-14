@@ -1,0 +1,16 @@
+{
+  "name": "@crm/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "e2e": "node scripts/preparar-banco.mjs && playwright test",
+    "e2e:ui": "node scripts/preparar-banco.mjs && playwright test --ui",
+    "e2e:report": "playwright show-report",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.2"
+  }
+}

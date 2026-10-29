@@ -14,8 +14,8 @@ services:
     name: crm-api
     runtime: node
     plan: free
-    region: virginia
-    buildCommand: npm ci && npm run build -w @crm/api && cd apps/api && npx prisma migrate deploy
+    region: oregon
+    buildCommand: npm ci --include=dev && npm run build -w @crm/api && cd apps/api && npx prisma migrate deploy
     startCommand: npm run start -w @crm/api
     healthCheckPath: /api/health/live
     envVars:
@@ -62,7 +62,7 @@ services:
     name: crm-ai-engine
     runtime: python
     plan: free
-    region: virginia
+    region: oregon
     rootDir: apps/ai-engine
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn src.main:app --host 0.0.0.0 --port $PORT

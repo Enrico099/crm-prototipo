@@ -61,12 +61,20 @@ export class AuthController {
     return { user: tokens.user };
   }
 
-  /** Cadastro pela tela de login: a conta fica pendente até um admin aprovar */
+  /** Cadastro pela tela de login: cria a conta (assessor, carteira vazia) e já abre a sessão */
   @Public()
   @Post('cadastro')
-  @HttpCode(HttpStatus.ACCEPTED)
-  cadastrar(@Body(new ZodValidationPipe(cadastroSchema)) dto: CadastroDto, @Req() req: Request) {
-    return this.cadastro.cadastrar(dto, contextoDaRequisicao(req));
+  @HttpCode(HttpStatus.CREATED)
+  async cadastrar(
+    @Body(new ZodValidationPipe(cadastroSchema)) dto: CadastroDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const ctx = contextoDaRequisicao(req);
+    const user = await this.cadastro.cadastrar(dto, ctx);
+    const tokens = await this.auth.issueTokens(user, { ctx });
+    gravarCookies(res, this.config, tokens.accessToken, tokens.refreshToken);
+    return { user: tokens.user };
   }
 
   @Public()

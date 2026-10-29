@@ -1,9 +1,12 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderComQuery, jsonResponse } from "@/test/render";
 import { mockApi } from "@/test/fetch-mock";
 import CadastroPage from "./page";
+
+const replace = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace, push: vi.fn() }) }));
 
 describe("Cadastro", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -17,13 +20,14 @@ describe("Cadastro", () => {
     await user.click(screen.getByRole("button", { name: "Criar conta" }));
   }
 
-  it("envia o cadastro e mostra que falta a aprovação do admin", async () => {
+  it("cria a conta e entra direto no dashboard", async () => {
+    replace.mockReset();
     const { chamadas } = mockApi({
-      "POST /api/auth/cadastro": { mensagem: "Cadastro recebido. Um administrador precisa aprovar sua conta." },
+      "POST /api/auth/cadastro": { user: { id: "u9", nome: "Paula Nova", email: "paula@ce.com", role: "ASSESSOR" } },
     });
     renderComQuery(<CadastroPage />);
     await preencher();
-    expect(await screen.findByRole("status")).toHaveTextContent(/administrador precisa aprovar/);
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
     expect(chamadas[0].body).toEqual({ nome: "Paula Nova", email: "paula@ce.com", senha: "senhaforte1234" });
   });
 
@@ -36,9 +40,11 @@ describe("Cadastro", () => {
   });
 
   it("erro da API aparece num alerta", async () => {
-    mockApi({ "POST /api/auth/cadastro": () => jsonResponse({ message: "Muitos cadastros a partir desta rede." }, 429) });
+    mockApi({
+      "POST /api/auth/cadastro": () => jsonResponse({ message: "Já existe uma conta com este e-mail." }, 409),
+    });
     renderComQuery(<CadastroPage />);
     await preencher();
-    expect(await screen.findByRole("alert")).toHaveTextContent("Muitos cadastros");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Já existe uma conta");
   });
 });

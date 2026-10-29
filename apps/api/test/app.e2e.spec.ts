@@ -487,52 +487,54 @@ describe('API (e2e com banco em memória)', () => {
   describe('cadastro de conta', () => {
     const novo = { nome: 'Paula Nova', email: 'paula@ce.com', senha: 'senhaforte1234' };
 
-    it('cria conta pendente que não entra até um admin aprovar', async () => {
-      const server = c.app.getHttpServer();
-      const res = await request(server).post('/api/auth/cadastro').send(novo).expect(202);
-      expect(res.body.mensagem).toMatch(/aprovar/);
+    it('cria conta de assessor ativa e já abre a sessão, só com a própria carteira', async () => {
+      const agent = request.agent(c.app.getHttpServer());
+      const res = await agent.post('/api/auth/cadastro').send(novo).expect(201);
+      expect(res.body.user).toMatchObject({ email: 'paula@ce.com', role: 'ASSESSOR' });
 
       const u = c.prisma.linhas('user').find((x) => x.email === 'paula@ce.com')!;
-      expect(u).toMatchObject({ ativo: false, cadastroPendente: true, role: 'ASSESSOR' });
+      expect(u).toMatchObject({ ativo: true, cadastroPendente: false });
       expect(u.senhaHash).not.toBe(novo.senha);
+      expect(auditorias(c, 'CRIACAO').some((a) => a.entidadeId === u.id)).toBe(true);
 
-      const login = await request(server).post('/api/auth/login').send({ email: novo.email, password: novo.senha }).expect(403);
-      expect(login.body.message).toMatch(/aguarda aprovação/);
-      // Senha errada continua genérica
-      await request(server).post('/api/auth/login').send({ email: novo.email, password: 'outrasenha123' }).expect(401);
+      // Sessão aberta, mas nenhum cliente de outro assessor aparece
+      const clientes = await agent.get('/api/clientes').expect(200);
+      expect(clientes.body.data).toEqual([]);
+      await agent.get(`/api/clientes/${c.clienteJoao.id}`).expect(404);
+
+      await request(c.app.getHttpServer()).post('/api/auth/login').send({ email: novo.email, password: novo.senha }).expect(200);
+    });
+
+    it('e-mail já cadastrado → 409 e a conta existente não muda', async () => {
+      const res = await request(c.app.getHttpServer())
+        .post('/api/auth/cadastro')
+        .send({ ...novo, email: 'joao@ce.com' })
+        .expect(409);
+      expect(res.body.message).toMatch(/Já existe uma conta/);
+      expect(c.prisma.linhas('user').find((x) => x.email === 'joao@ce.com')).toMatchObject({ ativo: true, nome: 'João Diniz' });
+    });
+
+    it('senha fraca → 400', async () => {
+      await request(c.app.getHttpServer()).post('/api/auth/cadastro').send({ ...novo, senha: 'curta1' }).expect(400);
+    });
+
+    it('admin lista usuários; aprovar/recusar só valem para cadastro pendente', async () => {
+      const pendente = (await c.prisma.user.create({
+        data: { email: 'antigo@ce.com', nome: 'Pendente Antigo', senhaHash: 'x', ativo: false, cadastroPendente: true },
+      })) as { id: string };
 
       const joao = await logar(c, 'joao@ce.com');
-      await joao.patch(`/api/usuarios/${u.id}/aprovar`).send({ role: 'ASSESSOR' }).expect(403);
+      await joao.get('/api/usuarios').expect(403);
 
       const admin = await logar(c, 'admin@ce.com');
       const lista = await admin.get('/api/usuarios').expect(200);
-      expect(lista.body[0]).toMatchObject({ email: 'paula@ce.com', cadastroPendente: true });
+      expect(lista.body[0]).toMatchObject({ email: 'antigo@ce.com', cadastroPendente: true });
       expect(lista.body[0].senhaHash).toBeUndefined();
 
-      await admin.patch(`/api/usuarios/${u.id}/aprovar`).send({ role: 'READONLY' }).expect(200);
-      await admin.patch(`/api/usuarios/${u.id}/aprovar`).send({ role: 'ADMIN' }).expect(409);
-      const ok = await request(server).post('/api/auth/login').send({ email: novo.email, password: novo.senha }).expect(200);
-      expect(ok.body.user.role).toBe('READONLY');
-    });
-
-    it('e-mail já cadastrado recebe a mesma resposta e nada muda', async () => {
-      await request(c.app.getHttpServer())
-        .post('/api/auth/cadastro')
-        .send({ ...novo, email: 'joao@ce.com' })
-        .expect(202);
-      expect(c.prisma.linhas('user').find((x) => x.email === 'joao@ce.com')).toMatchObject({ ativo: true, role: 'ASSESSOR' });
-    });
-
-    it('valida senha fraca e recusa apaga só cadastro pendente', async () => {
-      const server = c.app.getHttpServer();
-      await request(server).post('/api/auth/cadastro').send({ ...novo, senha: 'curta1' }).expect(400);
-      await request(server).post('/api/auth/cadastro').send(novo).expect(202);
-      const u = c.prisma.linhas('user').find((x) => x.email === 'paula@ce.com')!;
-
-      const admin = await logar(c, 'admin@ce.com');
       await admin.delete(`/api/usuarios/${c.joao.id}/cadastro`).expect(409);
-      await admin.delete(`/api/usuarios/${u.id}/cadastro`).expect(204);
-      expect(c.prisma.linhas('user').some((x) => x.email === 'paula@ce.com')).toBe(false);
+      await admin.patch(`/api/usuarios/${pendente.id}/aprovar`).send({ role: 'READONLY' }).expect(200);
+      await admin.patch(`/api/usuarios/${pendente.id}/aprovar`).send({ role: 'ADMIN' }).expect(409);
+      expect(c.prisma.linhas('user').find((x) => x.id === pendente.id)).toMatchObject({ ativo: true, role: 'READONLY' });
     });
   });
 

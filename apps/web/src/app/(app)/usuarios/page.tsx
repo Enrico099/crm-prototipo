@@ -42,7 +42,7 @@ export default function UsuariosPage() {
     <>
       <PageHeader
         title="Usuários"
-        description="Aprove os cadastros feitos pela tela de login e escolha o perfil de acesso de cada pessoa"
+        description="Quem tem acesso ao sistema. Contas criadas pela tela de cadastro entram como assessor."
       />
 
       {isLoading && (
@@ -56,11 +56,12 @@ export default function UsuariosPage() {
 
       {data && (
         <div className="space-y-6">
+          {pendentes.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle>Aguardando aprovação</CardTitle>
               <CardDescription>
-                Contas criadas pela tela de cadastro. Até serem aprovadas, não acessam o sistema.
+                Cadastros feitos antes do acesso imediato. Até serem aprovados, não acessam o sistema.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -75,6 +76,7 @@ export default function UsuariosPage() {
               )}
             </CardContent>
           </Card>
+          )}
 
           <Card>
             <CardHeader>

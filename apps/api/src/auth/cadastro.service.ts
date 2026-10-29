@@ -1,4 +1,5 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { ConflictException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import type { User } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
@@ -8,14 +9,10 @@ import type { CadastroDto } from './dto/auth.schemas';
 const JANELA_MS = 60 * 60 * 1000;
 const MAX_CADASTROS_POR_IP = 5;
 
-export const MENSAGEM_CADASTRO =
-  'Cadastro recebido. Um administrador precisa aprovar sua conta antes do primeiro acesso.';
-
 /**
- * Cadastro público pela tela de login. A conta nasce inativa e pendente
- * (perfil ASSESSOR, sem carteira) e só entra no sistema depois que um admin
- * aprova e escolhe o perfil. E-mail já cadastrado recebe a mesma resposta,
- * para não revelar quem tem conta.
+ * Cadastro público pela tela de login. A conta já nasce ativa, com perfil
+ * ASSESSOR e carteira vazia: pelo escopo por assessor, ela só enxerga os
+ * clientes e leads que ela mesma cadastrar. Outro perfil, só um admin define.
  *
  * Limite por IP em memória (vale por instância, como o LoginThrottleService).
  */
@@ -28,32 +25,30 @@ export class CadastroService {
     private readonly auditoria: AuditoriaService,
   ) {}
 
-  async cadastrar(dto: CadastroDto, ctx?: ContextoRequisicao) {
+  async cadastrar(dto: CadastroDto, ctx?: ContextoRequisicao): Promise<User> {
     this.contarTentativa(ctx?.ip ?? null);
 
     const existente = await this.prisma.user.findUnique({ where: { email: dto.email }, select: { id: true } });
-    if (!existente) {
-      const user = await this.prisma.user.create({
-        data: {
-          nome: dto.nome,
-          email: dto.email,
-          senhaHash: await bcrypt.hash(dto.senha, 10),
-          role: 'ASSESSOR',
-          ativo: false,
-          cadastroPendente: true,
-        },
-        select: { id: true, email: true },
-      });
-      await this.auditoria.registrar({
-        acao: 'CRIACAO',
-        entidade: 'User',
-        entidadeId: user.id,
-        userId: null,
-        diff: { origem: 'cadastro_publico', email: user.email, pendente: true },
-        contexto: ctx,
-      });
+    if (existente) {
+      throw new ConflictException('Já existe uma conta com este e-mail. Entre pela tela de login.');
     }
-    return { mensagem: MENSAGEM_CADASTRO };
+    const user = await this.prisma.user.create({
+      data: {
+        nome: dto.nome,
+        email: dto.email,
+        senhaHash: await bcrypt.hash(dto.senha, 10),
+        role: 'ASSESSOR',
+      },
+    });
+    await this.auditoria.registrar({
+      acao: 'CRIACAO',
+      entidade: 'User',
+      entidadeId: user.id,
+      userId: user.id,
+      diff: { origem: 'cadastro_publico', email: user.email, role: user.role },
+      contexto: ctx,
+    });
+    return user;
   }
 
   private contarTentativa(ip: string | null) {

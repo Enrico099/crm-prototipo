@@ -62,11 +62,13 @@ export function useLogin() {
   });
 }
 
-/** Cadastro público: a conta fica pendente até um admin aprovar */
+/** Cadastro público: cria a conta (assessor, carteira vazia) e já abre a sessão */
 export function useCadastro() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: { nome: string; email: string; senha: string }) =>
-      apiFetch<{ mensagem: string }>("/auth/cadastro", { method: "POST", body }),
+      apiFetch<{ user: AuthUser }>("/auth/cadastro", { method: "POST", body }),
+    onSuccess: (res) => qc.setQueryData(ME_QUERY_KEY, res.user),
   });
 }
 

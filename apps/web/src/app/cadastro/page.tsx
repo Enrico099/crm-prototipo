@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { Marca } from "@/components/nav-links";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,8 +32,8 @@ const cadastroSchema = z
 type CadastroInputs = z.infer<typeof cadastroSchema>;
 
 export default function CadastroPage() {
+  const router = useRouter();
   const cadastro = useCadastro();
-  const [enviado, setEnviado] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const {
@@ -47,8 +48,8 @@ export default function CadastroPage() {
   async function onSubmit({ nome, email, senha }: CadastroInputs) {
     setServerError(null);
     try {
-      const res = await cadastro.mutateAsync({ nome, email, senha });
-      setEnviado(res.mensagem);
+      await cadastro.mutateAsync({ nome, email, senha });
+      router.replace("/dashboard");
     } catch (e) {
       setServerError(
         e instanceof ApiError ? e.message : "Não foi possível conectar ao servidor. Tente novamente.",
@@ -78,23 +79,10 @@ export default function CadastroPage() {
         </div>
         <h1 className="titulo-display text-[40px] leading-none mb-2">Criar conta</h1>
         <p className="text-sm text-muted-foreground mb-8">
-          Depois do cadastro, um administrador aprova o acesso e define seu perfil.
+          Você entra como assessor, com sua própria carteira de clientes.
         </p>
 
-        {enviado ? (
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              <p role="status" className="flex items-start gap-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-positivo" aria-hidden />
-                {enviado}
-              </p>
-              <Link href="/login" className={cn(buttonVariants(), "w-full")}>
-                Voltar para o login
-              </Link>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
+        <Card>
             <CardContent className="p-6 space-y-4">
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-3" noValidate>
                 <div className="space-y-1.5">
@@ -161,8 +149,7 @@ export default function CadastroPage() {
                 </Link>
               </p>
             </CardContent>
-          </Card>
-        )}
+        </Card>
       </div>
     </main>
   );

@@ -37,6 +37,7 @@ Fator = Literal["profileMatch", "diversification", "yield", "liquidity", "cost"]
 # Limites de payload: o serviço é interno, mas não confia no tamanho do input.
 MAX_CATALOGO = 2000
 MAX_POSICOES = 1000
+MAX_REPROVADOS_COMITE = 20
 
 
 # ============================================================
@@ -109,6 +110,25 @@ class DescarteAgregado(BaseModel):
     contexto: DescarteContexto | None = None
 
 
+Especialista = Literal[
+    "suitability", "risco", "concentracao", "liquidez", "custo", "dados", "conviccao"
+]
+
+
+class ParecerEspecialista(BaseModel):
+    especialista: Especialista
+    nome: str
+    aprovado: bool
+    parecer: str
+
+
+class ReprovacaoComite(BaseModel):
+    """Candidato pontuado que o comitê de especialistas barrou (só os pareceres contrários)."""
+    produtoId: str
+    produtoNome: str
+    pareceres: list[ParecerEspecialista]
+
+
 class RecomendacaoOut(BaseModel):
     produtoId: str
     produtoNome: str
@@ -122,10 +142,14 @@ class RecomendacaoOut(BaseModel):
     scoreRegras: float = Field(ge=0, le=1)
     # De onde veio `score`: versão do modelo ML, "rule-engine" ou "rule-engine-fallback"
     scoreFonte: str
+    # Pareceres do comitê de especialistas (todos aprovados — senão não sairia)
+    comite: list[ParecerEspecialista] = []
 
 
 class RecommendResponse(BaseModel):
     recomendacoes: list[RecomendacaoOut]
     descartados: list[DescarteAgregado] = []
     totalAnalisados: int = 0
+    # Candidatos barrados pelo comitê, em ordem de score (no máximo MAX_REPROVADOS_COMITE)
+    reprovadosComite: list[ReprovacaoComite] = []
     engineVersion: str

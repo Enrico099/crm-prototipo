@@ -1,0 +1,75 @@
+# Blueprint do Render: API (NestJS) + motor de recomendação (Python).
+# O front fica no Netlify e o banco no Supabase. Passo a passo em docs/deploy.md.
+# Variáveis com "sync: false" são pedidas pelo Render na criação do Blueprint.
+
+envVarGroups:
+  - name: crm-segredos-compartilhados
+    envVars:
+      # Mesmo valor na API e no motor (Authorization entre os dois)
+      - key: AI_ENGINE_TOKEN
+        generateValue: true
+
+services:
+  - type: web
+    name: crm-api
+    runtime: node
+    plan: free
+    region: virginia
+    buildCommand: npm ci && npm run build -w @crm/api && cd apps/api && npx prisma migrate deploy
+    startCommand: npm run start -w @crm/api
+    healthCheckPath: /api/health/live
+    envVars:
+      - fromGroup: crm-segredos-compartilhados
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: API_PORT
+        value: "10000"
+      # Render (proxy) + Netlify (proxy do Next): o IP real do usuário é o 2º salto
+      - key: TRUST_PROXY
+        value: "2"
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      # URL do site no Netlify, ex.: https://capital-elite-crm.netlify.app
+      - key: WEB_ORIGIN
+        sync: false
+      # URL do motor, ex.: https://crm-ai-engine.onrender.com
+      - key: AI_ENGINE_URL
+        sync: false
+      - key: AI_ENGINE_TIMEOUT_MS
+        value: "60000"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: CPF_HASH_SECRET
+        generateValue: true
+      - key: MFA_CHAVE
+        generateValue: true
+      # Copie este valor para o Netlify (variável de mesmo nome)
+      - key: ENVIO_CRON_TOKEN
+        generateValue: true
+      # Ex.: smtps://usuario:senha-de-app@smtp.gmail.com:465
+      - key: SMTP_URL
+        sync: false
+      - key: EMAIL_REMETENTE
+        sync: false
+
+  - type: web
+    name: crm-ai-engine
+    runtime: python
+    plan: free
+    region: virginia
+    rootDir: apps/ai-engine
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: crm-segredos-compartilhados
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: ENV
+        value: production

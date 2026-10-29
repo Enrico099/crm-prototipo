@@ -14,10 +14,16 @@ import type { ContextoRequisicao } from '../common/request-context';
 import type { AuthUser } from '../auth/decorators/current-user.decorator';
 import { escopoCliente, garantirClienteNoEscopo } from '../auth/escopo';
 import { extrairParametrosSuitability } from '../suitability/parametros';
-import { AiEngineService, type AiEngineRequest } from './ai-engine.service';
+import {
+  AiEngineService,
+  type AiEngineRecomendacao,
+  type AiEngineRequest,
+} from './ai-engine.service';
 import {
   AVISO_APOIO_DECISAO,
+  ESPECIALISTAS_COMITE,
   LIMITE_CATALOGO_MOTOR,
+  LIMITE_CLIENTES_OPORTUNIDADES,
   produtoAdequadoAoPerfil,
   VALIDADE_RECOMENDACAO_DIAS,
 } from './regras';
@@ -53,6 +59,21 @@ export type ContextoGeracao = {
 
 const STATUS_FINAIS_BLOQUEADOS = new Set(['INATIVO', 'BLOQUEADO']);
 
+/** Quantas chamadas ao motor rodam em paralelo na varredura de oportunidades */
+const CONCORRENCIA_OPORTUNIDADES = 4;
+
+/**
+ * Dupla checagem do comitê de especialistas: só aceita do motor recomendação
+ * com parecer favorável de TODOS os especialistas. Motor antigo (sem comitê) ou
+ * com bug que deixe passar um parecer contrário é barrado aqui.
+ */
+function aprovadaPeloComite(r: AiEngineRecomendacao): boolean {
+  const aprovados = new Set(r.comite.filter((p) => p.aprovado).map((p) => p.especialista));
+  return (
+    r.comite.every((p) => p.aprovado) && ESPECIALISTAS_COMITE.every((e) => aprovados.has(e))
+  );
+}
+
 @Injectable()
 export class RecomendacoesService {
   constructor(
@@ -81,6 +102,11 @@ export class RecomendacoesService {
         );
       }
       vistos.add(r.produtoId);
+      if (!aprovadaPeloComite(r)) {
+        throw new BadGatewayException(
+          'O motor de recomendação retornou uma recomendação sem aprovação de todo o comitê de especialistas.',
+        );
+      }
     }
 
     const descartados = result.descartados.map((d) => ({
@@ -97,6 +123,7 @@ export class RecomendacoesService {
     const resumo = {
       totalAnalisados: result.totalAnalisados,
       descartados,
+      reprovadosComite: result.reprovadosComite,
       engineVersion: result.engineVersion,
     };
 
@@ -136,6 +163,8 @@ export class RecomendacoesService {
                 contribs: r.contribs,
                 scoreRegras: r.scoreRegras ?? null,
                 scoreFonte: r.scoreFonte ?? null,
+                comite: r.comite,
+                reprovadosComiteDaRodada: result.reprovadosComite,
                 geradoPor: result.engineVersion,
                 descartadosDaRodada: descartados,
                 totalAnalisados: result.totalAnalisados,
@@ -171,6 +200,98 @@ export class RecomendacoesService {
       geradas: criadas.length,
       recomendacoes: criadas.map((r) => this.sanitize(r)),
       ...resumo,
+    };
+  }
+
+  /**
+   * Oportunidades do dia: roda o motor (com o comitê de especialistas) para cada
+   * cliente da carteira e devolve o que passou, sem gravar nada. Para virar
+   * recomendação formal, o assessor gera pelo cliente (POST /generate).
+   * Clientes que não puderam ser analisados vêm em `pendencias`, com o motivo.
+   */
+  async oportunidadesDoDia(user: AuthUser, ctx?: ContextoRequisicao) {
+    const clientes = await this.prisma.cliente.findMany({
+      where: { ...escopoCliente(user), status: { notIn: ['INATIVO', 'BLOQUEADO'] } },
+      select: { id: true, nome: true, perfil: true, patrimonio: true },
+      orderBy: [{ patrimonio: 'desc' }, { id: 'asc' }],
+      take: LIMITE_CLIENTES_OPORTUNIDADES,
+    });
+
+    type Resultado =
+      | { tipo: 'ok'; recs: AiEngineRecomendacao[]; reprovados: number; engineVersion: string }
+      | { tipo: 'pendencia'; motivo: string };
+
+    const analisar = async (clienteId: string): Promise<Resultado> => {
+      try {
+        const { request } = await this.montarRequest(user, clienteId, 3);
+        const result = await this.aiEngine.recommend(request, ctx?.requestId);
+        const ids = new Set(request.catalog.map((p) => p.id));
+        return {
+          tipo: 'ok',
+          recs: result.recomendacoes.filter((r) => ids.has(r.produtoId) && aprovadaPeloComite(r)),
+          reprovados: result.reprovadosComite.length,
+          engineVersion: result.engineVersion,
+        };
+      } catch (e) {
+        if (e instanceof UnprocessableEntityException) {
+          return { tipo: 'pendencia', motivo: (e.getResponse() as { message: string }).message };
+        }
+        if (e instanceof NotFoundException) return { tipo: 'pendencia', motivo: 'Cliente não encontrado.' };
+        return { tipo: 'pendencia', motivo: 'O motor de recomendação não respondeu para este cliente.' };
+      }
+    };
+
+    const resultados: Resultado[] = new Array(clientes.length);
+    let proximo = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(CONCORRENCIA_OPORTUNIDADES, clientes.length) }, async () => {
+        while (proximo < clientes.length) {
+          const i = proximo++;
+          resultados[i] = await analisar(clientes[i].id);
+        }
+      }),
+    );
+
+    const oportunidades = [];
+    const pendencias = [];
+    let reprovadosComite = 0;
+    let engineVersion: string | null = null;
+    for (const [i, c] of clientes.entries()) {
+      const res = resultados[i];
+      const cliente = { id: c.id, nome: c.nome, perfil: c.perfil, patrimonio: Number(c.patrimonio.toString()) };
+      if (res.tipo === 'pendencia') {
+        pendencias.push({ cliente, motivo: res.motivo });
+        continue;
+      }
+      engineVersion = res.engineVersion;
+      reprovadosComite += res.reprovados;
+      if (res.recs.length === 0) {
+        pendencias.push({
+          cliente,
+          motivo: 'Nenhum produto do catálogo foi aprovado por todo o comitê de especialistas.',
+        });
+        continue;
+      }
+      for (const r of res.recs) {
+        oportunidades.push({
+          cliente,
+          produtoId: r.produtoId,
+          produtoNome: r.produtoNome,
+          score: r.score,
+          justificativa: r.justificativa,
+          comite: r.comite,
+        });
+      }
+    }
+    oportunidades.sort((a, b) => b.score - a.score);
+
+    return {
+      geradoEm: new Date().toISOString(),
+      clientesAnalisados: clientes.length,
+      reprovadosComite,
+      engineVersion,
+      oportunidades,
+      pendencias,
     };
   }
 

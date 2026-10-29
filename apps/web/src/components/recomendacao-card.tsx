@@ -38,6 +38,7 @@ import {
   statusRecomendacaoLabel,
 } from "@/lib/labels";
 import { cn } from "@/lib/utils";
+import { ParecerComite, SeloComite } from "@/components/parecer-comite";
 import type {
   DescarteAgregado,
   FatorRecomendacao,
@@ -168,6 +169,7 @@ export function RecomendacaoCard({ recomendacao: r, onActionDone }: Props) {
           <blockquote className="rounded-md bg-muted/40 p-3 border border-border">
             <p className="text-sm leading-relaxed text-foreground/90">{r.justificativa}</p>
           </blockquote>
+          {r.payload?.comite && r.payload.comite.length > 0 && <SeloComite comite={r.payload.comite} />}
 
           {/* Detalhes (expansível) — só pra recomendações geradas pelo motor */}
           {r.payload?.contribs && r.payload.contribs.length > 0 ? (
@@ -188,6 +190,12 @@ export function RecomendacaoCard({ recomendacao: r, onActionDone }: Props) {
 
               {expanded && (
                 <div id={idFatores} className="space-y-2 pt-3 border-t">
+                  {r.payload.comite && r.payload.comite.length > 0 && (
+                    <div className="space-y-2 pb-3 mb-1 border-b">
+                      <p className="text-xs font-medium">Pareceres do comitê de especialistas</p>
+                      <ParecerComite comite={r.payload.comite} />
+                    </div>
+                  )}
                   {[...r.payload.contribs]
                     .sort((a, b) => b.contrib - a.contrib)
                     .map((c) => {

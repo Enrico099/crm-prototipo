@@ -17,6 +17,8 @@ export function permissoesDe(role: UserRole | undefined) {
     /** Inativar/reativar cliente (exclusão lógica) */
     podeInativarCliente: role === "ADMIN",
     podeVerAuditoria: role === "ADMIN" || role === "COMPLIANCE",
+    /** Disparar o e-mail das oportunidades do dia para a equipe */
+    podeEnviarOportunidades: role === "ADMIN",
   };
 }
 

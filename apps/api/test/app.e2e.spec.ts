@@ -8,6 +8,7 @@ import { configurarApp } from '../src/main';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { AiEngineService, type AiEngineResponse } from '../src/recomendacoes/ai-engine.service';
 import { QUESTIONARIO } from '../src/suitability/questionario';
+import { EmailService } from '../src/envios/email.service';
 import { FakePrisma, novoId } from './fake-prisma';
 import { ConfigService } from '@nestjs/config';
 import { base32Decode, hotp, passoAtual } from '../src/auth/mfa/totp';
@@ -19,12 +20,15 @@ type Contexto = Awaited<ReturnType<typeof criarApp>>;
 async function criarApp() {
   const prisma = new FakePrisma();
   const ai = { recommend: jest.fn(), health: jest.fn().mockResolvedValue({ ok: true }) };
+  const email = { configurado: true, enviar: jest.fn().mockResolvedValue(undefined) };
 
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(PrismaService)
     .useValue(prisma)
     .overrideProvider(AiEngineService)
     .useValue(ai)
+    .overrideProvider(EmailService)
+    .useValue(email)
     .compile();
 
   const app = moduleRef.createNestApplication({ bodyParser: false, logger: false });
@@ -89,7 +93,7 @@ async function criarApp() {
 
   return {
     app, prisma, ai, admin, joao, marina, leitor, compliance,
-    clienteJoao, clienteMarina, clienteSemSuit, cdb, acoes, suitJoao,
+    clienteJoao, clienteMarina, clienteSemSuit, cdb, acoes, suitJoao, email,
   };
 }
 
@@ -112,6 +116,10 @@ function auditorias(c: Contexto, acao?: string) {
   return c.prisma.linhas('auditoria').filter((a) => !acao || a.acao === acao);
 }
 
+const ESPECIALISTAS = ['suitability', 'risco', 'concentracao', 'liquidez', 'custo', 'dados', 'conviccao'] as const;
+const comiteAprovado = () =>
+  ESPECIALISTAS.map((especialista) => ({ especialista, nome: especialista, aprovado: true, parecer: 'Ok.' }));
+
 function respostaMotor(produtoIds: string[]): AiEngineResponse {
   return {
     recomendacoes: produtoIds.map((produtoId, i) => ({
@@ -124,9 +132,11 @@ function respostaMotor(produtoIds: string[]): AiEngineResponse {
       contribs: [{ fator: 'cost', contrib: 0.15, frase: 'Sem taxa de administração.' }],
       scoreRegras: 0.8,
       scoreFonte: 'rule-engine',
+      comite: comiteAprovado(),
     })),
     descartados: [{ motivo: 'perfil_incompativel', count: 1 }],
     totalAnalisados: 2,
+    reprovadosComite: [],
     engineVersion: 'rule-engine-py-v1.4',
   };
 }
@@ -470,6 +480,60 @@ describe('API (e2e com banco em memória)', () => {
   });
 
   // ============================================================
+  describe('envio das oportunidades do dia', () => {
+    const TOKEN = 'token-de-teste-do-agendador-0123456789';
+
+    it('só admin dispara pelo botão; e-mail só para quem tem oportunidade, com auditoria', async () => {
+      const joao = await logar(c, 'joao@ce.com');
+      await joao.post('/api/envios/oportunidades-do-dia').expect(403);
+
+      // Ordem dos destinatários: por id (admin, joao, marina). Admin vê a base toda.
+      c.ai.recommend.mockResolvedValue(respostaMotor([c.cdb.id]));
+      const admin = await logar(c, 'admin@ce.com');
+      const res = await admin.post('/api/envios/oportunidades-do-dia').expect(200);
+
+      expect(res.body).toMatchObject({ enviados: 2, semOportunidade: 1, falhas: 0 });
+      const para = c.email.enviar.mock.calls.map(([e]: [{ para: string }]) => e.para).sort();
+      expect(para).toEqual(['admin@ce.com', 'joao@ce.com']);
+      const [emailJoao] = c.email.enviar.mock.calls.find(([e]: [{ para: string }]) => e.para === 'joao@ce.com');
+      expect(emailJoao.html).toContain('Ana Joao');
+      expect(emailJoao.html).not.toContain('Bruno Marina');
+      expect(auditorias(c, 'EXPORTACAO_DADOS')).toHaveLength(2);
+    });
+
+    it('disparo agendado exige o token e não reenvia no mesmo dia', async () => {
+      const server = c.app.getHttpServer();
+      await request(server).post('/api/envios/oportunidades-do-dia/agendado').expect(401);
+      await request(server)
+        .post('/api/envios/oportunidades-do-dia/agendado')
+        .set('Authorization', 'Bearer errado')
+        .expect(401);
+
+      c.ai.recommend.mockResolvedValue(respostaMotor([c.cdb.id]));
+      await request(server)
+        .post('/api/envios/oportunidades-do-dia/agendado')
+        .set('Authorization', `Bearer ${TOKEN}`)
+        .expect(202);
+      await new Promise((r) => setTimeout(r, 50));
+      expect(c.email.enviar).toHaveBeenCalledTimes(2);
+
+      await request(server)
+        .post('/api/envios/oportunidades-do-dia/agendado')
+        .set('Authorization', `Bearer ${TOKEN}`)
+        .expect(202);
+      await new Promise((r) => setTimeout(r, 50));
+      expect(c.email.enviar).toHaveBeenCalledTimes(2);
+    });
+
+    it('sem SMTP configurado → 503', async () => {
+      c.email.configurado = false;
+      const admin = await logar(c, 'admin@ce.com');
+      const res = await admin.post('/api/envios/oportunidades-do-dia').expect(503);
+      expect(res.body.message).toMatch(/SMTP_URL/);
+    });
+  });
+
+  // ============================================================
   describe('recomendações', () => {
     function gerar(agent: ReturnType<typeof request.agent>, clienteId = c.clienteJoao.id) {
       c.ai.recommend.mockResolvedValueOnce(respostaMotor([c.cdb.id]));
@@ -538,6 +602,56 @@ describe('API (e2e com banco em memória)', () => {
       c.ai.recommend.mockResolvedValueOnce(respostaMotor([novoId()]));
       await agent.post('/api/recomendacoes/generate').send({ clienteId: c.clienteJoao.id }).expect(502);
       expect(c.prisma.linhas('recomendacao')).toHaveLength(0);
+    });
+
+    it('recomendação sem aprovação de todo o comitê → 502 e nada é gravado', async () => {
+      const agent = await logar(c, 'joao@ce.com');
+      const resp = respostaMotor([c.cdb.id]);
+      resp.recomendacoes[0].comite[2].aprovado = false;
+      c.ai.recommend.mockResolvedValueOnce(resp);
+      await agent.post('/api/recomendacoes/generate').send({ clienteId: c.clienteJoao.id }).expect(502);
+
+      const semEspecialista = respostaMotor([c.cdb.id]);
+      semEspecialista.recomendacoes[0].comite.pop();
+      c.ai.recommend.mockResolvedValueOnce(semEspecialista);
+      await agent.post('/api/recomendacoes/generate').send({ clienteId: c.clienteJoao.id }).expect(502);
+      expect(c.prisma.linhas('recomendacao')).toHaveLength(0);
+    });
+
+    it('geração grava os pareceres do comitê no payload', async () => {
+      const agent = await logar(c, 'joao@ce.com');
+      await gerar(agent).expect(200);
+      const payload = c.prisma.linhas('recomendacao')[0].payload as { comite: unknown[] };
+      expect(payload.comite).toHaveLength(ESPECIALISTAS.length);
+    });
+
+    it('oportunidades do dia: só a carteira do assessor, sem gravar, com pendências explicadas', async () => {
+      const agent = await logar(c, 'joao@ce.com');
+      c.ai.recommend.mockResolvedValueOnce(respostaMotor([c.cdb.id]));
+      const res = await agent.get('/api/recomendacoes/oportunidades-do-dia').expect(200);
+
+      expect(res.body.clientesAnalisados).toBe(2);
+      expect(res.body.oportunidades).toHaveLength(1);
+      expect(res.body.oportunidades[0]).toMatchObject({
+        cliente: { id: c.clienteJoao.id },
+        produtoId: c.cdb.id,
+      });
+      expect(res.body.oportunidades[0].comite).toHaveLength(ESPECIALISTAS.length);
+      expect(res.body.pendencias).toEqual([
+        { cliente: expect.objectContaining({ id: c.clienteSemSuit.id }), motivo: expect.stringMatching(/suitability/i) },
+      ]);
+      expect(c.ai.recommend).toHaveBeenCalledTimes(1);
+      expect(c.prisma.linhas('recomendacao')).toHaveLength(0);
+    });
+
+    it('oportunidades do dia: falha do motor num cliente vira pendência, não derruba a lista', async () => {
+      const agent = await logar(c, 'joao@ce.com');
+      c.ai.recommend.mockRejectedValueOnce(new Error('motor fora'));
+      const res = await agent.get('/api/recomendacoes/oportunidades-do-dia').expect(200);
+      expect(res.body.oportunidades).toEqual([]);
+      expect(res.body.pendencias.map((p: { motivo: string }) => p.motivo)).toEqual(
+        expect.arrayContaining([expect.stringMatching(/não respondeu/)]),
+      );
     });
 
     it('aprovação grava decisor, audita e não pode ser repetida', async () => {

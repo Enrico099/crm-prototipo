@@ -60,16 +60,34 @@ def test_nota_de_concentracao_fala_do_cliente_em_3a_pessoa():
 
 def test_catalogo_vazio_devolve_lista_vazia():
     body = client.post("/recommend", json=corpo(request(catalog=[]))).json()
-    assert body == {"recomendacoes": [], "descartados": [], "totalAnalisados": 0, "engineVersion": RULE_ENGINE_VERSION}
+    assert body == {
+        "recomendacoes": [],
+        "descartados": [],
+        "totalAnalisados": 0,
+        "reprovadosComite": [],
+        "engineVersion": RULE_ENGINE_VERSION,
+    }
 
 
-def test_patrimonio_zero():
+def test_patrimonio_zero_e_barrado_pelo_comite():
+    # Sem patrimônio não há alocação a avaliar: na dúvida, o comitê não recomenda
     r = client.post("/recommend", json=corpo(request(patrimonio=0)))
     assert r.status_code == 200
-    rec = r.json()["recomendacoes"][0]
-    assert rec["fatores"]["diversification"] == 0.0  # sem patrimônio não há gap calculável
-    assert 0 <= rec["score"] <= 1
-    assert rec["justificativa"]
+    body = r.json()
+    assert body["recomendacoes"] == []
+    [reprovado] = body["reprovadosComite"]
+    assert "concentracao" in {p["especialista"] for p in reprovado["pareceres"]}
+
+
+def test_recomendacao_sai_com_parecer_aprovado_de_todos_os_especialistas(catalogo_basico):
+    req = request(perfil="ARROJADO", tolerancia=30, catalog=catalogo_basico)
+    recs = client.post("/recommend", json=corpo(req)).json()["recomendacoes"]
+    assert recs
+    for rec in recs:
+        assert {p["especialista"] for p in rec["comite"]} == {
+            "suitability", "risco", "concentracao", "liquidez", "custo", "dados", "conviccao"
+        }
+        assert all(p["aprovado"] and p["parecer"] for p in rec["comite"])
 
 
 def test_payload_invalido_responde_422():

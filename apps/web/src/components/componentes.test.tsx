@@ -194,6 +194,7 @@ describe("Navegação principal", () => {
       "Histórico",
       "Suitability",
       "Produtos",
+      "Oportunidades do dia",
       "Recomendações IA",
       "Relatórios",
     ]);

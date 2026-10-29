@@ -10,3 +10,5 @@ process.env.MFA_CHAVE = 'segredo-de-teste-mfa-0123456789abcdef';
 process.env.MFA_OBRIGATORIO_PARA = '';
 process.env.WEB_ORIGIN = 'http://localhost:3000';
 process.env.AI_ENGINE_URL = 'http://127.0.0.1:1';
+process.env.SMTP_URL = '';
+process.env.ENVIO_CRON_TOKEN = 'token-de-teste-do-agendador-0123456789';

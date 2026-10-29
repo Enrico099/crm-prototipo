@@ -7,6 +7,7 @@ import {
   GitBranch,
   History,
   BarChart3,
+  Target,
   type LucideIcon,
 } from "lucide-react";
 
@@ -34,6 +35,7 @@ export const navGrupos: NavGrupo[] = [
     itens: [
       { href: "/suitability", label: "Suitability", icon: FileCheck2 },
       { href: "/produtos", label: "Produtos", icon: Package },
+      { href: "/oportunidades", label: "Oportunidades do dia", icon: Target },
       { href: "/recomendacao", label: "Recomendações IA", icon: Sparkles },
     ],
   },

@@ -38,6 +38,12 @@ export class RecomendacoesController {
     return this.service.list(user, query);
   }
 
+  // Antes de ':id' para não ser capturada como id
+  @Get('oportunidades-do-dia')
+  oportunidadesDoDia(@CurrentUser() user: AuthUser, @Req() req: Request) {
+    return this.service.oportunidadesDoDia(user, contextoDaRequisicao(req));
+  }
+
   @Get(':id')
   findById(@CurrentUser() user: AuthUser, @Param('id', IdParamPipe) id: string) {
     return this.service.findById(user, id);

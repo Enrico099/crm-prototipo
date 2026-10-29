@@ -8,6 +8,7 @@ import { AuditoriaModule } from './auditoria/auditoria.module';
 import { CarteiraModule } from './carteira/carteira.module';
 import { ClientesModule } from './clientes/clientes.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { EnviosModule } from './envios/envios.module';
 import { InteracoesModule } from './interacoes/interacoes.module';
 import { LeadsModule } from './leads/leads.module';
 import { ProdutosModule } from './produtos/produtos.module';
@@ -32,6 +33,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     CarteiraModule,
     ClientesModule,
     DashboardModule,
+    EnviosModule,
     InteracoesModule,
     LeadsModule,
     ProdutosModule,

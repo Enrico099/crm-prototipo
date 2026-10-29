@@ -10,7 +10,7 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --font-heading: var(--font-sans);
-  /* Serifada editorial: títulos de página, nome do cliente, números de destaque */
+  /* Serifada institucional: títulos de página e nome do cliente */
   --font-display: var(--font-display);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -197,7 +197,6 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "cv11", "ss01";
   }
   html {
     @apply font-sans;
@@ -209,11 +208,18 @@
   .caixa-aviso {
     @apply rounded-lg border border-aviso-borda bg-aviso text-aviso-foreground;
   }
-  /* Título de página e destaques em serifada */
+  /* Título de página em serifada */
   .titulo-display {
     font-family: var(--font-display);
-    font-weight: 400;
-    letter-spacing: -0.01em;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+  }
+  /* Valores de destaque (KPIs, patrimônio): sans com algarismos tabulares */
+  .numero-destaque {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums lining-nums;
   }
   /* Rótulo pequeno em caixa alta (seções, KPIs) */
   .rotulo {

@@ -53,6 +53,22 @@ const MOTIVOS = [
   'risco_alem_tolerancia',
   'ja_sobrealocado',
 ] as const;
+const ESPECIALISTAS = [
+  'suitability',
+  'risco',
+  'concentracao',
+  'liquidez',
+  'custo',
+  'dados',
+  'conviccao',
+] as const;
+
+const parecerSchema = z.object({
+  especialista: z.enum(ESPECIALISTAS),
+  nome: z.string().max(80),
+  aprovado: z.boolean(),
+  parecer: z.string().max(500),
+});
 
 // A resposta do motor é validada antes de ir pro banco: é um serviço externo
 // e o que ele devolve vira registro de auditoria.
@@ -71,6 +87,8 @@ const respostaSchema = z.object({
           .max(10),
         scoreRegras: z.number().min(0).max(1).optional(),
         scoreFonte: z.string().max(80).optional(),
+        // Comitê de especialistas: o que sai precisa ter todos os pareceres favoráveis
+        comite: z.array(parecerSchema).max(ESPECIALISTAS.length).default([]),
       }),
     )
     .max(10),
@@ -89,12 +107,23 @@ const respostaSchema = z.object({
     )
     .default([]),
   totalAnalisados: z.number().int().min(0),
+  reprovadosComite: z
+    .array(
+      z.object({
+        produtoId: z.string().min(1).max(64),
+        produtoNome: z.string().max(200),
+        pareceres: z.array(parecerSchema).max(ESPECIALISTAS.length),
+      }),
+    )
+    .max(20)
+    .default([]),
   engineVersion: z.string().min(1).max(80),
 });
 
 export type AiEngineResponse = z.infer<typeof respostaSchema>;
 export type AiEngineRecomendacao = AiEngineResponse['recomendacoes'][number];
 export type AiEngineDescarte = AiEngineResponse['descartados'][number];
+export type AiEngineReprovacao = AiEngineResponse['reprovadosComite'][number];
 
 export type AiEngineHealth = {
   ok: boolean;

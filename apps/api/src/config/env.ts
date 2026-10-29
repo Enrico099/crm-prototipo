@@ -42,6 +42,14 @@ const envSchema = z
     AI_ENGINE_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(15_000),
     // Token compartilhado com o AI Engine (header Authorization). Opcional em dev.
     AI_ENGINE_TOKEN: z.string().optional(),
+
+    // --- Envio diário das oportunidades por e-mail (opcional) ---
+    // Ex.: smtps://usuario:senha@smtp.gmail.com:465. Sem ela o envio fica desligado.
+    SMTP_URL: z.string().url().optional().or(z.literal('').transform(() => undefined)),
+    EMAIL_REMETENTE: z.string().default('Capital Elite CRM <no-reply@capitalelite.com.br>'),
+    // Token que o agendador (função agendada do Netlify, cron externo) manda em
+    // Authorization: Bearer para disparar o envio. Sem ele o disparo agendado fica desligado.
+    ENVIO_CRON_TOKEN: z.string().optional().or(z.literal('').transform(() => undefined)),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') return;
@@ -75,6 +83,13 @@ const envSchema = z
         code: z.ZodIssueCode.custom,
         path: ['MFA_CHAVE'],
         message: 'MFA_CHAVE precisa ter 32+ caracteres em produção',
+      });
+    }
+    if (env.ENVIO_CRON_TOKEN && env.ENVIO_CRON_TOKEN.length < 32) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ENVIO_CRON_TOKEN'],
+        message: 'ENVIO_CRON_TOKEN precisa ter 32+ caracteres em produção',
       });
     }
     if (!env.AI_ENGINE_TOKEN) {

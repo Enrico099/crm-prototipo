@@ -9,6 +9,8 @@ Híbrido ML + regras:
 - Pontuação: LightGBM treinado quando modelo carregado, senão soma ponderada
   dos 5 fatores rule-based (fallback). `engineVersion` reflete qual está em uso
   e cada recomendação traz `scoreFonte` + `scoreRegras`.
+- Comitê de especialistas (especialistas.py): segunda análise independente de cada
+  candidato pontuado; só sai o que todos os especialistas aprovam.
 - Justificativa em pt-BR sempre vem das regras (são auditáveis e explicáveis),
   independente de o ranking ter vindo do ML.
 
@@ -24,13 +26,14 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 
 from .justificativa import build_justificativa, preencher_frases_fator
 from .ml.scorer import get_scorer
-from .models import RecommendRequest, RecommendResponse
+from .especialistas import aplicar_comite
+from .models import MAX_REPROVADOS_COMITE, RecommendRequest, RecommendResponse
 from .rules import clamp, exposicao_por_emissor, top_recomendacoes
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("ai-engine")
 
-RULE_ENGINE_VERSION = "rule-engine-py-v1.4"
+RULE_ENGINE_VERSION = "rule-engine-py-v1.5"
 
 
 def resolve_engine_version() -> str:
@@ -103,8 +106,12 @@ def recommend(req: RecommendRequest) -> RecommendResponse:
     em pt-BR (sempre rule-based, pra auditoria) e breakdown dos descartes.
     """
     scorer = get_scorer()
-    scoreds, descartados, total = top_recomendacoes(req, req.topN, ml_scorer=scorer)
+    # Pontua todos os elegíveis; o comitê escolhe os top-N que aprova por unanimidade
+    candidatos, descartados, total = top_recomendacoes(
+        req, max(len(req.catalog), 1), ml_scorer=scorer
+    )
     exposicao_emissor = exposicao_por_emissor(req.posicoes, req.catalog)
+    scoreds, reprovados = aplicar_comite(req, candidatos, req.topN, exposicao_emissor)
 
     recomendacoes = []
     for scored in scoreds:
@@ -125,6 +132,7 @@ def recommend(req: RecommendRequest) -> RecommendResponse:
                 "contribs": scored["contribs"],
                 "scoreRegras": round(clamp(scored["score_rules"]), 3),
                 "scoreFonte": scored["score_source"],
+                "comite": scored["comite"],
             }
         )
 
@@ -132,5 +140,6 @@ def recommend(req: RecommendRequest) -> RecommendResponse:
         recomendacoes=recomendacoes,
         descartados=descartados,
         totalAnalisados=total,
+        reprovadosComite=reprovados[:MAX_REPROVADOS_COMITE],
         engineVersion=resolve_engine_version(),
     )

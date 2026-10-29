@@ -41,3 +41,6 @@ e2e/playwright-report/
 .vercel/
 
 # Prisma (cliente gerado fica em node_modules, mas migrations ficam versionadas)
+
+# Netlify (CLI local)
+.netlify/

@@ -22,6 +22,20 @@ export const VALIDADE_RECOMENDACAO_DIAS = 30;
 /** Teto de produtos enviados ao motor por rodada (limite de payload) */
 export const LIMITE_CATALOGO_MOTOR = 2000;
 
+/** Teto de clientes varridos por rodada de oportunidades do dia */
+export const LIMITE_CLIENTES_OPORTUNIDADES = 200;
+
+/** Especialistas do comitê do motor: todos precisam aprovar a recomendação */
+export const ESPECIALISTAS_COMITE = [
+  'suitability',
+  'risco',
+  'concentracao',
+  'liquidez',
+  'custo',
+  'dados',
+  'conviccao',
+] as const;
+
 export const AVISO_APOIO_DECISAO =
   'Recomendação gerada por motor de apoio à decisão. A decisão final é do assessor ' +
   'e está sujeita aos controles internos e de compliance da instituição.';

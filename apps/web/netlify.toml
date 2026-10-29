@@ -1,0 +1,16 @@
+# Deploy do front no Netlify (monorepo). No painel do Netlify:
+#   Base directory:    (vazio, raiz do repositório)
+#   Package directory: apps/web
+# A API e o motor Python rodam fora do Netlify (ver docs/deploy.md).
+# Variáveis de ambiente obrigatórias no Netlify: API_URL e ENVIO_CRON_TOKEN.
+
+[build]
+  command = "npm run build -w @crm/web"
+  # Caminhos relativos ao base directory (a raiz do repositório)
+  publish = "apps/web/.next"
+
+[build.environment]
+  NODE_VERSION = "24"
+
+[functions]
+  directory = "apps/web/netlify/functions"

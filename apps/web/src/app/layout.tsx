@@ -1,21 +1,23 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
-const sans = Geist({
+const sans = IBM_Plex_Sans({
   variable: "--font-sans",
+  weight: ["400", "500", "600", "700"],
   subsets: ["latin"],
 });
 
-const mono = Geist_Mono({
+const mono = IBM_Plex_Mono({
   variable: "--font-mono",
+  weight: ["400", "500"],
   subsets: ["latin"],
 });
 
-const display = Instrument_Serif({
+const display = Source_Serif_4({
   variable: "--font-display",
-  weight: "400",
+  weight: ["600"],
   subsets: ["latin"],
 });
 

@@ -32,6 +32,9 @@ import type {
   Suitability,
   PerfilInvestidor,
   CategoriaProduto,
+  OportunidadesDoDia,
+  ResumoEnvio,
+  StatusEnvio,
 } from "@/types/api";
 
 // ----- Auth -----
@@ -243,6 +246,30 @@ export function useRecomendacao(id: string | null) {
     queryKey: [RECOMENDACOES_KEY, "detail", id],
     queryFn: () => apiFetch<Recomendacao>(`/recomendacoes/${id}`),
     enabled: !!id,
+  });
+}
+
+export function useOportunidadesDoDia() {
+  return useQuery({
+    queryKey: [RECOMENDACOES_KEY, "oportunidades-do-dia"],
+    queryFn: () => apiFetch<OportunidadesDoDia>("/recomendacoes/oportunidades-do-dia"),
+    // Roda o motor para a carteira inteira: não refaz a cada troca de aba
+    staleTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useStatusEnvio(habilitado: boolean) {
+  return useQuery({
+    queryKey: ["envios", "status"],
+    queryFn: () => apiFetch<StatusEnvio>("/envios/status"),
+    enabled: habilitado,
+  });
+}
+
+export function useEnviarOportunidades() {
+  return useMutation({
+    mutationFn: () => apiFetch<ResumoEnvio>("/envios/oportunidades-do-dia", { method: "POST" }),
   });
 }
 

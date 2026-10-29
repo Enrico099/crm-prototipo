@@ -232,6 +232,29 @@ export type DescarteAgregado = {
   contexto?: { emissor?: string; pctPatrimonio?: number };
 };
 
+export type Especialista =
+  | "suitability"
+  | "risco"
+  | "concentracao"
+  | "liquidez"
+  | "custo"
+  | "dados"
+  | "conviccao";
+
+/** Parecer de um especialista do comitê que revisa cada recomendação do motor */
+export type ParecerEspecialista = {
+  especialista: Especialista;
+  nome: string;
+  aprovado: boolean;
+  parecer: string;
+};
+
+export type ReprovacaoComite = {
+  produtoId: string;
+  produtoNome: string;
+  pareceres: ParecerEspecialista[];
+};
+
 export type Recomendacao = {
   id: string;
   clienteId: string;
@@ -263,6 +286,9 @@ export type Recomendacao = {
     /** Origem do score: versão do modelo ML ou "rule-engine" */
     scoreFonte?: string | null;
     descartadosDaRodada?: DescarteAgregado[];
+    /** Pareceres do comitê de especialistas (todos favoráveis) */
+    comite?: ParecerEspecialista[];
+    reprovadosComiteDaRodada?: ReprovacaoComite[];
     totalAnalisados?: number;
     contexto?: {
       suitabilityId: string;
@@ -309,7 +335,43 @@ export type GenerateResult = {
   recomendacoes: Recomendacao[];
   totalAnalisados: number;
   descartados: DescarteAgregado[];
+  reprovadosComite: ReprovacaoComite[];
   engineVersion: string;
+};
+
+// ----- Oportunidades do dia -----
+
+export type StatusEnvio = { emailConfigurado: boolean; agendamentoConfigurado: boolean };
+
+export type ResumoEnvio = {
+  enviados: number;
+  semOportunidade: number;
+  jaEnviadosHoje: number;
+  falhas: number;
+};
+
+export type ClienteOportunidade = {
+  id: string;
+  nome: string;
+  perfil: PerfilInvestidor;
+  patrimonio: number;
+};
+
+export type OportunidadesDoDia = {
+  geradoEm: string;
+  clientesAnalisados: number;
+  /** Candidatos que algum especialista barrou, somando todos os clientes */
+  reprovadosComite: number;
+  engineVersion: string | null;
+  oportunidades: {
+    cliente: ClienteOportunidade;
+    produtoId: string;
+    produtoNome: string;
+    score: number;
+    justificativa: string;
+    comite: ParecerEspecialista[];
+  }[];
+  pendencias: { cliente: ClienteOportunidade; motivo: string }[];
 };
 
 // ----- Carteira -----

@@ -33,7 +33,7 @@ export function KpiCard({ label, value, icon: Icon, hint, tone = "blue" }: Props
           <p className="rotulo leading-snug">{label}</p>
           <Icon className={cn("h-4 w-4 shrink-0", toneStyles[tone])} strokeWidth={1.75} aria-hidden />
         </div>
-        <p className="titulo-display text-[38px] leading-none mt-4 tabular-nums">{value}</p>
+        <p className="numero-destaque text-[34px] leading-none mt-4">{value}</p>
         {hint && <p className="text-xs text-muted-foreground mt-2.5">{hint}</p>}
       </CardContent>
     </Card>

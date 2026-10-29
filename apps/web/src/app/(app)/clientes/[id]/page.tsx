@@ -256,7 +256,7 @@ export default function ClienteDetalhePage({
               <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground font-semibold">
                 Patrimônio
               </p>
-              <p className="titulo-display text-[34px] leading-none tabular-nums mt-2">
+              <p className="numero-destaque text-[30px] leading-none mt-2">
                 {fmt.brl(cliente.patrimonio)}
               </p>
               {podeOperar && (

@@ -123,6 +123,12 @@ auditoria continuam na API; não use Supabase Auth, RLS nem `supabase-js` no fro
 No plano gratuito o projeto pausa depois de 7 dias sem uso. CI e testes E2E continuam em um
 Postgres descartável: não aponte para o banco do Supabase.
 
+### Deploy (Netlify + Render + Supabase)
+
+O front vai para o Netlify; API e motor Python para o Render ([`render.yaml`](render.yaml));
+banco no Supabase. Passo a passo, incluindo o e-mail diário das oportunidades, em
+[`docs/deploy.md`](docs/deploy.md).
+
 ### Credenciais de demonstração (somente ambiente local, criadas pelo seed)
 
 | Email | Perfil | Senha |

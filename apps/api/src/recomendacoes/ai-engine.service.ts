@@ -197,23 +197,24 @@ export class AiEngineService {
   /**
    * Espera o motor responder ao /health. Em hospedagem que hiberna o serviço
    * ocioso (plano gratuito do Render), a primeira chamada acorda o motor e o
-   * proxy responde 502 até ele subir. Usado antes das varreduras em lote.
+   * proxy responde 502 até ele subir; a subida já levou ~4 min, e o primeiro
+   * /health ainda carrega o modelo (~15 s). Usado antes das varreduras em lote.
    */
-  async aguardarDisponivel(maxMs = 90_000, intervaloMs = 5_000): Promise<boolean> {
+  async aguardarDisponivel(maxMs = 5 * 60_000, intervaloMs = 10_000): Promise<boolean> {
     const limite = Date.now() + maxMs;
     for (;;) {
-      if ((await this.health()).ok) return true;
+      if ((await this.health(30_000)).ok) return true;
       if (Date.now() + intervaloMs > limite) return false;
       await new Promise((r) => setTimeout(r, intervaloMs));
     }
   }
 
   /** Health check com timeout curto — usado em GET /api/health */
-  async health(): Promise<AiEngineHealth> {
+  async health(timeoutMs = 3000): Promise<AiEngineHealth> {
     try {
       const r = await fetch(`${this.baseUrl}/health`, {
         headers: this.headers(),
-        signal: AbortSignal.timeout(3000),
+        signal: AbortSignal.timeout(timeoutMs),
       });
       if (!r.ok) return { ok: false, erro: `HTTP ${r.status}` };
       const body = (await r.json().catch(() => ({}))) as { engine?: string; ml_loaded?: boolean };

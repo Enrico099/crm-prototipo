@@ -79,7 +79,8 @@ hoje", com link para a tela *Oportunidades do dia*. O e-mail é opcional e só s
   `%40`). Para volume maior, use um provedor transacional (Resend, Brevo, SendGrid,
   Amazon SES), que também fornece uma URL SMTP.
 - **Horário:** a função [`enviar-oportunidades`](../apps/web/netlify/functions/enviar-oportunidades.mts)
-  roda de segunda a sexta às 8h de Brasília (`0 11 * * 1-5`, em UTC). Para mudar, altere o
+  roda de segunda a sexta às 8h, 8h10 e 8h20 de Brasília (`0,10,20 11 * * 1-5`, em UTC): no plano
+  gratuito a primeira chamada acorda a API e o motor, e as seguintes completam o aviso. Para mudar, altere o
   `schedule` e publique de novo.
 - **Quem recebe:** cada assessor ativo recebe as oportunidades da própria carteira; cada
   admin, as da base toda. Quem não tem nenhuma oportunidade aprovada pelo comitê não

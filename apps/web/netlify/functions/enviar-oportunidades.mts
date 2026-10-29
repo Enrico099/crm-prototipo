@@ -1,11 +1,14 @@
 /**
- * Função agendada do Netlify: dispara o e-mail das oportunidades do dia.
+ * Função agendada do Netlify: dispara o aviso das oportunidades do dia
+ * (notificação no sistema e, se configurado, e-mail).
  * Só chama a API, que responde 202 e faz a varredura em segundo plano. Quem já
  * recebeu hoje não recebe de novo, então repetir a chamada é seguro.
  *
- * Horário em UTC: "0 11 * * 1-5" = 8h de Brasília, de segunda a sexta.
+ * Horário em UTC: 8h, 8h10 e 8h20 de Brasília, de segunda a sexta. Em plano
+ * gratuito a API e o motor hibernam e levam minutos para subir: a primeira
+ * chamada os acorda e as seguintes passam (quem já foi avisado é pulado).
  */
-export const config = { schedule: "0 11 * * 1-5" };
+export const config = { schedule: "0,10,20 11 * * 1-5" };
 
 const TENTATIVAS = 3;
 

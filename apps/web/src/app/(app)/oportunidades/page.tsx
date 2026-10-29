@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Info, Loader2, Mail, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
+import { BellRing, ChevronDown, Info, Loader2, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,7 @@ export default function OportunidadesPage() {
         description="O motor analisa a carteira inteira e cada sugestão passa por um comitê de especialistas. Só aparece aqui o que todos aprovaram."
         actions={
           <>
-            {podeEnviarOportunidades && <EnviarPorEmail />}
+            {podeEnviarOportunidades && <AvisarAssessores />}
             <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
               <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} aria-hidden />
               Analisar novamente
@@ -135,22 +135,25 @@ export default function OportunidadesPage() {
   );
 }
 
-/** Admin: manda agora o e-mail do dia para cada assessor (e admin) com oportunidades */
-function EnviarPorEmail() {
+/** Admin: refaz agora o aviso do dia (notificação no sistema e, se configurado, e-mail) */
+function AvisarAssessores() {
   const { data: status } = useStatusEnvio(true);
   const enviar = useEnviarOportunidades();
-  const desligado = status && !status.emailConfigurado;
 
   return (
     <Button
       size="sm"
       variant="outline"
-      disabled={enviar.isPending || desligado}
-      title={desligado ? "Configure SMTP_URL na API para ativar o envio" : undefined}
+      disabled={enviar.isPending}
+      title={
+        status?.emailConfigurado
+          ? "Avisa no sistema e por e-mail"
+          : "Avisa no sistema (sininho). E-mail não configurado."
+      }
       onClick={() =>
         enviar.mutate(undefined, {
           onSuccess: () =>
-            toast.success("Envio iniciado. Os e-mails chegam em alguns minutos para quem tem oportunidade hoje."),
+            toast.success("Aviso iniciado. Em alguns minutos cada assessor com oportunidade hoje vê a notificação."),
           onError: (e) => toast.error(e.message),
         })
       }
@@ -158,9 +161,9 @@ function EnviarPorEmail() {
       {enviar.isPending ? (
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
       ) : (
-        <Mail className="h-4 w-4" aria-hidden />
+        <BellRing className="h-4 w-4" aria-hidden />
       )}
-      {desligado ? "E-mail não configurado" : "Enviar por e-mail"}
+      Avisar assessores
     </Button>
   );
 }

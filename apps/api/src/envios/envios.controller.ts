@@ -37,10 +37,10 @@ export class EnviosController {
   @Get('status')
   @Roles('ADMIN')
   status() {
-    return { emailConfigurado: this.service.configurado, agendamentoConfigurado: !!this.cronToken };
+    return { emailConfigurado: this.service.emailConfigurado, agendamentoConfigurado: !!this.cronToken };
   }
 
-  /** Botão "Enviar agora" (admin): envia para todos, mesmo quem já recebeu hoje */
+  /** Botão "Avisar agora" (admin): refaz o aviso do dia para todos, mesmo quem já foi avisado */
   @Post('oportunidades-do-dia')
   @Roles('ADMIN')
   @HttpCode(HttpStatus.ACCEPTED)

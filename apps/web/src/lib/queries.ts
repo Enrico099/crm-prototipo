@@ -36,6 +36,7 @@ import type {
   StatusEnvio,
   UserRole,
   UsuarioAdmin,
+  ListaNotificacoes,
 } from "@/types/api";
 
 // ----- Auth -----
@@ -69,6 +70,34 @@ export function useCadastro() {
     mutationFn: (body: { nome: string; email: string; senha: string }) =>
       apiFetch<{ user: AuthUser }>("/auth/cadastro", { method: "POST", body }),
     onSuccess: (res) => qc.setQueryData(ME_QUERY_KEY, res.user),
+  });
+}
+
+export const NOTIFICACOES_KEY = "notificacoes" as const;
+
+export function useNotificacoes(habilitado = true) {
+  return useQuery({
+    queryKey: [NOTIFICACOES_KEY],
+    queryFn: () => apiFetch<ListaNotificacoes>("/notificacoes"),
+    enabled: habilitado,
+    // O aviso diário chega de manhã: confere de tempos em tempos
+    refetchInterval: 5 * 60_000,
+  });
+}
+
+export function useMarcarNotificacaoLida() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`/notificacoes/${id}/lida`, { method: "PATCH" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [NOTIFICACOES_KEY] }),
+  });
+}
+
+export function useMarcarTodasLidas() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiFetch<void>("/notificacoes/lidas", { method: "POST" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [NOTIFICACOES_KEY] }),
   });
 }
 

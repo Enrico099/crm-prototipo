@@ -63,7 +63,15 @@ terminada em `?pgbouncer=true`) e `DIRECT_URL` (porta 5432).
 4. Faça o deploy e confira se o `WEB_ORIGIN` do Render é exatamente a URL do site. Se não
    for, o login responde 403 (proteção contra CSRF).
 
-## 4. E-mail diário das oportunidades
+## 4. Aviso diário das oportunidades
+
+O aviso sempre chega **dentro do sistema**, no sininho do topo: "N oportunidades para
+hoje", com link para a tela *Oportunidades do dia*. O e-mail é opcional e só sai com
+`SMTP_URL` configurado.
+
+> **Plano gratuito do Render bloqueia SMTP** (portas 25, 465 e 587): o e-mail só funciona
+> com o serviço `crm-api` num plano pago. O aviso no sistema funciona em qualquer plano.
+
 
 - **SMTP:** qualquer provedor serve. No Gmail, ative a verificação em duas etapas, crie
   uma *senha de app* e use
@@ -76,8 +84,8 @@ terminada em `?pgbouncer=true`) e `DIRECT_URL` (porta 5432).
 - **Quem recebe:** cada assessor ativo recebe as oportunidades da própria carteira; cada
   admin, as da base toda. Quem não tem nenhuma oportunidade aprovada pelo comitê não
   recebe e-mail. Quem já recebeu no dia não recebe de novo pelo agendamento.
-- **Enviar agora:** o admin tem o botão *Enviar por e-mail* na tela *Oportunidades do dia*
-  (esse reenvia mesmo para quem já recebeu).
+- **Avisar agora:** o admin tem o botão *Avisar assessores* na tela *Oportunidades do dia*
+  (refaz o aviso do dia, trocando o anterior).
 - **Auditoria:** cada e-mail enviado fica registrado (`EXPORTACAO_DADOS`, entidade
   `EnvioOportunidades`), com destinatário e clientes citados.
 

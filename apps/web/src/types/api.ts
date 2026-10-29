@@ -4,6 +4,19 @@
 
 export type UserRole = "ADMIN" | "ASSESSOR" | "COMPLIANCE" | "READONLY";
 
+export type Notificacao = {
+  id: string;
+  tipo: string;
+  titulo: string;
+  mensagem: string;
+  /** Caminho interno do front, ex.: "/oportunidades" */
+  link: string | null;
+  lidaEm: string | null;
+  criadoEm: string;
+};
+
+export type ListaNotificacoes = { itens: Notificacao[]; naoLidas: number };
+
 /** Usuário na tela de administração (GET /usuarios) */
 export type UsuarioAdmin = {
   id: string;

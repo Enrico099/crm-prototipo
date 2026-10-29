@@ -59,6 +59,7 @@ const DEFAULTS: Record<string, () => Record<string, unknown>> = {
   lead: () => ({ estagio: 'PROSPECCAO', email: null, telefone: null, observacoes: null, responsavelId: null, clienteId: null, fechadoEm: null }),
   estagioHistorico: () => ({ notas: null, criadoEm: new Date() }),
   posicao: () => ({ adquiridoEm: new Date(), atualizadoEm: new Date() }),
+  notificacao: () => ({ link: null, lidaEm: null, criadoEm: new Date() }),
   movimentacao: () => ({ observacao: null, desenquadrada: false, recomendacaoId: null, registradoPorId: null, criadoEm: new Date() }),
 };
 
@@ -81,6 +82,7 @@ export class FakePrisma {
   readonly estagioHistorico = this.tabela('estagioHistorico');
   readonly interacao = this.tabela('interacao');
   readonly movimentacao = this.tabela('movimentacao');
+  readonly notificacao = this.tabela('notificacao');
 
   async $transaction<T>(fn: (tx: FakePrisma) => Promise<T>): Promise<T> {
     // Snapshot raso pra simular rollback quando a transação lança

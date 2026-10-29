@@ -19,10 +19,10 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Marca, NavLinks } from "@/components/nav-links";
+import { Notificacoes } from "@/components/notificacoes";
 import { cn } from "@/lib/utils";
 import { useLogout, useMe } from "@/lib/queries";
 import { roleLabel } from "@/lib/labels";
-
 
 function initials(nome: string) {
   return nome
@@ -88,6 +88,7 @@ export function AppHeader() {
       </p>
 
       <div className="flex items-center gap-1 ml-auto">
+        <Notificacoes habilitado={!!user} />
         <AlternarTema />
         <span className="mx-1 h-6 w-px bg-border" aria-hidden />
 

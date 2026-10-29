@@ -54,6 +54,7 @@ model User {
   refreshTokens RefreshToken[]
   movimentacoes Movimentacao[] @relation("MovimentacaoRegistradaPor")
   codigosRecuperacao CodigoRecuperacaoMfa[]
+  notificacoes  Notificacao[]
 
   // email já é @unique (índice implícito) — o @@index([email]) antigo era redundante
   @@map("users")
@@ -460,4 +461,23 @@ model Auditoria {
   @@index([entidade, entidadeId])
   @@index([acao, criadoEm])
   @@map("auditoria")
+}
+
+// Notificações dentro do sistema (sininho do topo). Ex.: resumo diário das
+// oportunidades aprovadas pelo comitê de especialistas.
+model Notificacao {
+  id       String    @id @default(cuid())
+  userId   String
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Ex.: "OPORTUNIDADES_DO_DIA"
+  tipo     String
+  titulo   String
+  mensagem String
+  // Caminho interno do front, ex.: "/oportunidades"
+  link     String?
+  lidaEm   DateTime?
+  criadoEm DateTime  @default(now())
+
+  @@index([userId, criadoEm])
+  @@map("notificacoes")
 }

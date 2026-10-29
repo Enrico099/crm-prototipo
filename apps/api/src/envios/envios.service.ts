@@ -6,16 +6,22 @@ import type { ContextoRequisicao } from '../common/request-context';
 import { RecomendacoesService } from '../recomendacoes/recomendacoes.service';
 import { webOrigins } from '../config/env';
 import { EmailService } from './email.service';
-import { montarEmailOportunidades } from './email-oportunidades';
+import { montarEmailOportunidades, type ResultadoOportunidades } from './email-oportunidades';
 
 export const ENTIDADE_ENVIO = 'EnvioOportunidades';
+export const TIPO_NOTIFICACAO_OPORTUNIDADES = 'OPORTUNIDADES_DO_DIA';
 
 export type ResumoEnvio = {
-  enviados: number;
+  /** Receberam a notificação no sistema (sininho) */
+  notificados: number;
+  /** Receberam também por e-mail (só com SMTP configurado) */
+  emails: number;
   semOportunidade: number;
-  jaEnviadosHoje: number;
+  jaAvisadosHoje: number;
   falhas: number;
 };
+
+type Opcoes = { pularJaEnviados: boolean; disparadoPor?: string | null };
 
 /** 00:00 de hoje em Brasília (sem horário de verão desde 2019) */
 function inicioDoDiaBrasilia(agora = new Date()): Date {
@@ -24,10 +30,13 @@ function inicioDoDiaBrasilia(agora = new Date()): Date {
 }
 
 /**
- * Envio diário das oportunidades do dia por e-mail. Cada assessor recebe as da
- * própria carteira; cada admin, as da base toda. Destinatário sem oportunidade
- * aprovada pelo comitê não recebe nada. Cada envio é auditado (EXPORTACAO_DADOS:
- * o e-mail leva nome e patrimônio de clientes para fora do sistema).
+ * Aviso diário das oportunidades do dia. Cada assessor recebe as da própria
+ * carteira; cada admin, as da base toda. Quem não tem oportunidade aprovada pelo
+ * comitê não recebe nada.
+ *
+ * O aviso sempre vira uma notificação no sistema (sininho do topo). Com SMTP
+ * configurado vai também por e-mail, e cada e-mail é auditado
+ * (EXPORTACAO_DADOS: leva nome e patrimônio de clientes para fora do sistema).
  */
 @Injectable()
 export class EnviosService {
@@ -45,46 +54,29 @@ export class EnviosService {
     this.linkApp = webOrigins({ WEB_ORIGIN: config.get<string>('WEB_ORIGIN') ?? 'http://localhost:3000' })[0];
   }
 
-  get configurado(): boolean {
+  get emailConfigurado(): boolean {
     return this.email.configurado;
   }
 
   /**
-   * Valida e dispara o envio em segundo plano. A varredura passa do tempo que os
-   * proxies (Netlify, agendador) esperam, então quem chama recebe a resposta na
-   * hora; o resultado vai para o log e cada e-mail fica na auditoria.
-   * Lança 503 na hora se o SMTP não estiver configurado ou já houver envio rodando.
+   * Dispara o aviso em segundo plano. A varredura passa do tempo que os proxies
+   * (Netlify, agendador) esperam, então quem chama recebe a resposta na hora e o
+   * resumo vai para o log. Lança 503 na hora se já houver um aviso rodando.
    */
-  iniciarEnvio(
-    opcoes: { pularJaEnviados: boolean; disparadoPor?: string | null },
-    ctx?: ContextoRequisicao,
-  ): void {
-    this.garantirDisponivel();
+  iniciarEnvio(opcoes: Opcoes, ctx?: ContextoRequisicao): void {
+    this.garantirLivre();
     this.enviarOportunidadesDoDia(opcoes, ctx).catch((e: Error) =>
-      this.logger.error(`Envio de oportunidades falhou: ${e.message}`),
+      this.logger.error(`Aviso de oportunidades falhou: ${e.message}`),
     );
   }
 
-  private garantirDisponivel() {
-    if (!this.email.configurado) {
-      throw new ServiceUnavailableException(
-        'Envio por e-mail não configurado. Defina SMTP_URL nas variáveis de ambiente da API.',
-      );
-    }
-    if (this.emAndamento) {
-      throw new ServiceUnavailableException('Já existe um envio em andamento. Aguarde alguns minutos.');
-    }
-  }
-
   /**
-   * @param pularJaEnviados disparo agendado: quem já recebeu hoje não recebe de novo
-   *   (o agendador pode repetir a chamada). O botão "Enviar agora" reenvia.
+   * @param opcoes.pularJaEnviados disparo agendado: quem já foi avisado hoje não é
+   *   avisado de novo (o agendador pode repetir a chamada). O botão do admin refaz
+   *   o aviso do dia, trocando o anterior.
    */
-  async enviarOportunidadesDoDia(
-    opcoes: { pularJaEnviados: boolean; disparadoPor?: string | null },
-    ctx?: ContextoRequisicao,
-  ): Promise<ResumoEnvio> {
-    this.garantirDisponivel();
+  async enviarOportunidadesDoDia(opcoes: Opcoes, ctx?: ContextoRequisicao): Promise<ResumoEnvio> {
+    this.garantirLivre();
     this.emAndamento = true;
     try {
       return await this.executar(opcoes, ctx);
@@ -93,27 +85,27 @@ export class EnviosService {
     }
   }
 
-  private async executar(
-    opcoes: { pularJaEnviados: boolean; disparadoPor?: string | null },
-    ctx?: ContextoRequisicao,
-  ): Promise<ResumoEnvio> {
+  private garantirLivre() {
+    if (this.emAndamento) {
+      throw new ServiceUnavailableException('Já existe um aviso em andamento. Aguarde alguns minutos.');
+    }
+  }
+
+  private async executar(opcoes: Opcoes, ctx?: ContextoRequisicao): Promise<ResumoEnvio> {
     const destinatarios = await this.prisma.user.findMany({
       where: { ativo: true, role: { in: ['ADMIN', 'ASSESSOR'] } },
       select: { id: true, email: true, nome: true, role: true },
       orderBy: { id: 'asc' },
     });
 
-    const resumo: ResumoEnvio = { enviados: 0, semOportunidade: 0, jaEnviadosHoje: 0, falhas: 0 };
-    const hoje = inicioDoDiaBrasilia();
+    const resumo: ResumoEnvio = { notificados: 0, emails: 0, semOportunidade: 0, jaAvisadosHoje: 0, falhas: 0 };
+    const doDia = { tipo: TIPO_NOTIFICACAO_OPORTUNIDADES, criadoEm: { gte: inicioDoDiaBrasilia() } };
 
     for (const u of destinatarios) {
       if (opcoes.pularJaEnviados) {
-        const ja = await this.prisma.auditoria.findFirst({
-          where: { acao: 'EXPORTACAO_DADOS', entidade: ENTIDADE_ENVIO, entidadeId: u.id, criadoEm: { gte: hoje } },
-          select: { id: true },
-        });
+        const ja = await this.prisma.notificacao.findFirst({ where: { userId: u.id, ...doDia }, select: { id: true } });
         if (ja) {
-          resumo.jaEnviadosHoje++;
+          resumo.jaAvisadosHoje++;
           continue;
         }
       }
@@ -124,30 +116,63 @@ export class EnviosService {
           resumo.semOportunidade++;
           continue;
         }
-        await this.email.enviar(montarEmailOportunidades(u, r, this.linkApp));
-        resumo.enviados++;
-        await this.auditoria.registrar({
-          acao: 'EXPORTACAO_DADOS',
-          entidade: ENTIDADE_ENVIO,
-          entidadeId: u.id,
-          userId: opcoes.disparadoPor ?? null,
-          diff: {
-            canal: 'email',
-            destinatario: u.email,
-            oportunidades: r.oportunidades.length,
-            clientes: [...new Set(r.oportunidades.map((o) => o.cliente.id))],
-            engineVersion: r.engineVersion,
-            agendado: opcoes.pularJaEnviados,
+
+        const n = r.oportunidades.length;
+        const clientes = new Set(r.oportunidades.map((o) => o.cliente.id)).size;
+        await this.prisma.notificacao.deleteMany({ where: { userId: u.id, ...doDia } });
+        await this.prisma.notificacao.create({
+          data: {
+            userId: u.id,
+            tipo: TIPO_NOTIFICACAO_OPORTUNIDADES,
+            titulo: n === 1 ? '1 oportunidade para hoje' : `${n} oportunidades para hoje`,
+            mensagem:
+              `O comitê de especialistas aprovou ${n} oportunidade(s) para ${clientes} cliente(s)` +
+              (u.role === 'ADMIN' ? ' da base.' : ' da sua carteira.'),
+            link: '/oportunidades',
           },
-          contexto: ctx,
         });
+        resumo.notificados++;
+
+        if (this.email.configurado) await this.enviarEmail(u, r, opcoes, resumo, ctx);
       } catch (e) {
         resumo.falhas++;
-        this.logger.error(`Falha no envio das oportunidades para ${u.email}: ${(e as Error).message}`);
+        this.logger.error(`Falha no aviso de oportunidades para ${u.email}: ${(e as Error).message}`);
       }
     }
 
-    this.logger.log(`Envio de oportunidades concluído: ${JSON.stringify(resumo)}`);
+    this.logger.log(`Aviso de oportunidades concluído: ${JSON.stringify(resumo)}`);
     return resumo;
+  }
+
+  /** E-mail é extra: se falhar, a notificação no sistema continua valendo */
+  private async enviarEmail(
+    u: { id: string; email: string; nome: string },
+    r: ResultadoOportunidades,
+    opcoes: Opcoes,
+    resumo: ResumoEnvio,
+    ctx?: ContextoRequisicao,
+  ) {
+    try {
+      await this.email.enviar(montarEmailOportunidades(u, r, this.linkApp));
+    } catch (e) {
+      this.logger.error(`E-mail de oportunidades para ${u.email} falhou: ${(e as Error).message}`);
+      return;
+    }
+    resumo.emails++;
+    await this.auditoria.registrar({
+      acao: 'EXPORTACAO_DADOS',
+      entidade: ENTIDADE_ENVIO,
+      entidadeId: u.id,
+      userId: opcoes.disparadoPor ?? null,
+      diff: {
+        canal: 'email',
+        destinatario: u.email,
+        oportunidades: r.oportunidades.length,
+        clientes: [...new Set(r.oportunidades.map((o) => o.cliente.id))],
+        engineVersion: r.engineVersion,
+        agendado: opcoes.pularJaEnviados,
+      },
+      contexto: ctx,
+    });
   }
 }

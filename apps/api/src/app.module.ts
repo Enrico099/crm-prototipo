@@ -11,6 +11,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { EnviosModule } from './envios/envios.module';
 import { InteracoesModule } from './interacoes/interacoes.module';
 import { LeadsModule } from './leads/leads.module';
+import { NotificacoesModule } from './notificacoes/notificacoes.module';
 import { ProdutosModule } from './produtos/produtos.module';
 import { RecomendacoesModule } from './recomendacoes/recomendacoes.module';
 import { SuitabilityModule } from './suitability/suitability.module';
@@ -36,6 +37,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     EnviosModule,
     InteracoesModule,
     LeadsModule,
+    NotificacoesModule,
     ProdutosModule,
     RecomendacoesModule,
     SuitabilityModule,

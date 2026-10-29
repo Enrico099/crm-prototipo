@@ -539,18 +539,22 @@ describe('API (e2e com banco em memória)', () => {
   });
 
   // ============================================================
-  describe('envio das oportunidades do dia', () => {
+  describe('aviso diário das oportunidades', () => {
     const TOKEN = 'token-de-teste-do-agendador-0123456789';
+    const espera = () => new Promise((r) => setTimeout(r, 50));
 
-    it('só admin dispara pelo botão; e-mail só para quem tem oportunidade, com auditoria', async () => {
+    it('só admin dispara; vira notificação de quem tem oportunidade e e-mail se houver SMTP', async () => {
       const joao = await logar(c, 'joao@ce.com');
       await joao.post('/api/envios/oportunidades-do-dia').expect(403);
 
-      // Ordem dos destinatários: por id (admin, joao, marina). Admin vê a base toda.
+      // Destinatários por id (admin, joao, marina). Admin vê a base toda.
       c.ai.recommend.mockResolvedValue(respostaMotor([c.cdb.id]));
       const admin = await logar(c, 'admin@ce.com');
       await admin.post('/api/envios/oportunidades-do-dia').expect(202);
-      await new Promise((r) => setTimeout(r, 50));
+      await espera();
+
+      const donos = c.prisma.linhas('notificacao').map((n) => n.userId).sort();
+      expect(donos).toEqual([c.admin.id, c.joao.id].sort());
 
       const para = c.email.enviar.mock.calls.map(([e]: [{ para: string }]) => e.para).sort();
       expect(para).toEqual(['admin@ce.com', 'joao@ce.com']);
@@ -558,9 +562,24 @@ describe('API (e2e com banco em memória)', () => {
       expect(emailJoao.html).toContain('Ana Joao');
       expect(emailJoao.html).not.toContain('Bruno Marina');
       expect(auditorias(c, 'EXPORTACAO_DADOS')).toHaveLength(2);
+
+      // Refazer pelo botão troca o aviso do dia em vez de duplicar
+      await admin.post('/api/envios/oportunidades-do-dia').expect(202);
+      await espera();
+      expect(c.prisma.linhas('notificacao')).toHaveLength(2);
     });
 
-    it('disparo agendado exige o token e não reenvia no mesmo dia', async () => {
+    it('sem SMTP o aviso continua chegando no sistema', async () => {
+      c.email.configurado = false;
+      c.ai.recommend.mockResolvedValue(respostaMotor([c.cdb.id]));
+      const admin = await logar(c, 'admin@ce.com');
+      await admin.post('/api/envios/oportunidades-do-dia').expect(202);
+      await espera();
+      expect(c.prisma.linhas('notificacao')).toHaveLength(2);
+      expect(c.email.enviar).not.toHaveBeenCalled();
+    });
+
+    it('disparo agendado exige o token e não avisa duas vezes no mesmo dia', async () => {
       const server = c.app.getHttpServer();
       await request(server).post('/api/envios/oportunidades-do-dia/agendado').expect(401);
       await request(server)
@@ -569,26 +588,46 @@ describe('API (e2e com banco em memória)', () => {
         .expect(401);
 
       c.ai.recommend.mockResolvedValue(respostaMotor([c.cdb.id]));
-      await request(server)
-        .post('/api/envios/oportunidades-do-dia/agendado')
-        .set('Authorization', `Bearer ${TOKEN}`)
-        .expect(202);
-      await new Promise((r) => setTimeout(r, 50));
-      expect(c.email.enviar).toHaveBeenCalledTimes(2);
-
-      await request(server)
-        .post('/api/envios/oportunidades-do-dia/agendado')
-        .set('Authorization', `Bearer ${TOKEN}`)
-        .expect(202);
-      await new Promise((r) => setTimeout(r, 50));
+      const disparar = () =>
+        request(server).post('/api/envios/oportunidades-do-dia/agendado').set('Authorization', `Bearer ${TOKEN}`).expect(202);
+      await disparar();
+      await espera();
+      await disparar();
+      await espera();
+      expect(c.prisma.linhas('notificacao')).toHaveLength(2);
       expect(c.email.enviar).toHaveBeenCalledTimes(2);
     });
+  });
 
-    it('sem SMTP configurado → 503', async () => {
-      c.email.configurado = false;
-      const admin = await logar(c, 'admin@ce.com');
-      const res = await admin.post('/api/envios/oportunidades-do-dia').expect(503);
-      expect(res.body.message).toMatch(/SMTP_URL/);
+  // ============================================================
+  describe('notificações', () => {
+    async function notificar(userId: string, titulo = 'Aviso') {
+      return (await c.prisma.notificacao.create({
+        data: { userId, tipo: 'OPORTUNIDADES_DO_DIA', titulo, mensagem: 'Mensagem', link: '/oportunidades' },
+      })) as { id: string };
+    }
+
+    it('cada um vê só as próprias e marca como lidas', async () => {
+      const minha = await notificar(c.joao.id, 'Do João');
+      const alheia = await notificar(c.marina.id, 'Da Marina');
+
+      const joao = await logar(c, 'joao@ce.com');
+      const res = await joao.get('/api/notificacoes').expect(200);
+      expect(res.body.naoLidas).toBe(1);
+      expect(res.body.itens.map((n: { titulo: string }) => n.titulo)).toEqual(['Do João']);
+
+      await joao.patch(`/api/notificacoes/${alheia.id}/lida`).expect(404);
+      await joao.patch(`/api/notificacoes/${minha.id}/lida`).expect(204);
+      expect((await joao.get('/api/notificacoes')).body.naoLidas).toBe(0);
+      expect(c.prisma.linhas('notificacao').find((n) => n.id === alheia.id)!.lidaEm).toBeNull();
+    });
+
+    it('marcar todas como lidas vale também para perfil somente leitura', async () => {
+      await notificar(c.leitor.id);
+      await notificar(c.leitor.id);
+      const leitor = await logar(c, 'leitor@ce.com');
+      await leitor.post('/api/notificacoes/lidas').expect(204);
+      expect((await leitor.get('/api/notificacoes')).body.naoLidas).toBe(0);
     });
   });
 

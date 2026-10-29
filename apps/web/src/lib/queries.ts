@@ -33,7 +33,6 @@ import type {
   PerfilInvestidor,
   CategoriaProduto,
   OportunidadesDoDia,
-  ResumoEnvio,
   StatusEnvio,
   UserRole,
   UsuarioAdmin,
@@ -305,7 +304,8 @@ export function useStatusEnvio(habilitado: boolean) {
 
 export function useEnviarOportunidades() {
   return useMutation({
-    mutationFn: () => apiFetch<ResumoEnvio>("/envios/oportunidades-do-dia", { method: "POST" }),
+    // A API responde na hora e envia em segundo plano (a varredura demora)
+    mutationFn: () => apiFetch<{ iniciado: true }>("/envios/oportunidades-do-dia", { method: "POST" }),
   });
 }
 

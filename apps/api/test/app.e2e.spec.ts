@@ -547,9 +547,9 @@ describe('API (e2e com banco em memória)', () => {
       // Ordem dos destinatários: por id (admin, joao, marina). Admin vê a base toda.
       c.ai.recommend.mockResolvedValue(respostaMotor([c.cdb.id]));
       const admin = await logar(c, 'admin@ce.com');
-      const res = await admin.post('/api/envios/oportunidades-do-dia').expect(200);
+      await admin.post('/api/envios/oportunidades-do-dia').expect(202);
+      await new Promise((r) => setTimeout(r, 50));
 
-      expect(res.body).toMatchObject({ enviados: 2, semOportunidade: 1, falhas: 0 });
       const para = c.email.enviar.mock.calls.map(([e]: [{ para: string }]) => e.para).sort();
       expect(para).toEqual(['admin@ce.com', 'joao@ce.com']);
       const [emailJoao] = c.email.enviar.mock.calls.find(([e]: [{ para: string }]) => e.para === 'joao@ce.com');

@@ -50,13 +50,22 @@ export class EnviosService {
   }
 
   /**
-   * @param pularJaEnviados disparo agendado: quem já recebeu hoje não recebe de novo
-   *   (o agendador pode repetir a chamada). O botão "Enviar agora" reenvia.
+   * Valida e dispara o envio em segundo plano. A varredura passa do tempo que os
+   * proxies (Netlify, agendador) esperam, então quem chama recebe a resposta na
+   * hora; o resultado vai para o log e cada e-mail fica na auditoria.
+   * Lança 503 na hora se o SMTP não estiver configurado ou já houver envio rodando.
    */
-  async enviarOportunidadesDoDia(
+  iniciarEnvio(
     opcoes: { pularJaEnviados: boolean; disparadoPor?: string | null },
     ctx?: ContextoRequisicao,
-  ): Promise<ResumoEnvio> {
+  ): void {
+    this.garantirDisponivel();
+    this.enviarOportunidadesDoDia(opcoes, ctx).catch((e: Error) =>
+      this.logger.error(`Envio de oportunidades falhou: ${e.message}`),
+    );
+  }
+
+  private garantirDisponivel() {
     if (!this.email.configurado) {
       throw new ServiceUnavailableException(
         'Envio por e-mail não configurado. Defina SMTP_URL nas variáveis de ambiente da API.',
@@ -65,6 +74,17 @@ export class EnviosService {
     if (this.emAndamento) {
       throw new ServiceUnavailableException('Já existe um envio em andamento. Aguarde alguns minutos.');
     }
+  }
+
+  /**
+   * @param pularJaEnviados disparo agendado: quem já recebeu hoje não recebe de novo
+   *   (o agendador pode repetir a chamada). O botão "Enviar agora" reenvia.
+   */
+  async enviarOportunidadesDoDia(
+    opcoes: { pularJaEnviados: boolean; disparadoPor?: string | null },
+    ctx?: ContextoRequisicao,
+  ): Promise<ResumoEnvio> {
+    this.garantirDisponivel();
     this.emAndamento = true;
     try {
       return await this.executar(opcoes, ctx);

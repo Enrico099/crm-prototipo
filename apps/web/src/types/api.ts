@@ -355,12 +355,6 @@ export type GenerateResult = {
 
 export type StatusEnvio = { emailConfigurado: boolean; agendamentoConfigurado: boolean };
 
-export type ResumoEnvio = {
-  enviados: number;
-  semOportunidade: number;
-  jaEnviadosHoje: number;
-  falhas: number;
-};
 
 export type ClienteOportunidade = {
   id: string;

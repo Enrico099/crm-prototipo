@@ -4,7 +4,6 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
-  Logger,
   Post,
   Req,
   UnauthorizedException,
@@ -26,7 +25,6 @@ function tokenConfere(recebido: string, esperado: string): boolean {
 
 @Controller('envios')
 export class EnviosController {
-  private readonly logger = new Logger(EnviosController.name);
   private readonly cronToken?: string;
 
   constructor(
@@ -45,12 +43,10 @@ export class EnviosController {
   /** Botão "Enviar agora" (admin): envia para todos, mesmo quem já recebeu hoje */
   @Post('oportunidades-do-dia')
   @Roles('ADMIN')
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.ACCEPTED)
   enviarAgora(@CurrentUser() user: AuthUser, @Req() req: Request) {
-    return this.service.enviarOportunidadesDoDia(
-      { pularJaEnviados: false, disparadoPor: user.id },
-      contextoDaRequisicao(req),
-    );
+    this.service.iniciarEnvio({ pularJaEnviados: false, disparadoPor: user.id }, contextoDaRequisicao(req));
+    return { iniciado: true };
   }
 
   /**
@@ -66,9 +62,7 @@ export class EnviosController {
     if (!this.cronToken || !recebido || !tokenConfere(recebido, this.cronToken)) {
       throw new UnauthorizedException('Não autorizado');
     }
-    this.service
-      .enviarOportunidadesDoDia({ pularJaEnviados: true }, contextoDaRequisicao(req))
-      .catch((e: Error) => this.logger.error(`Envio agendado falhou: ${e.message}`));
+    this.service.iniciarEnvio({ pularJaEnviados: true }, contextoDaRequisicao(req));
     return { iniciado: true };
   }
 }

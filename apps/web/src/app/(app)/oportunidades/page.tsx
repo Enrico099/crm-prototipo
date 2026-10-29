@@ -149,12 +149,8 @@ function EnviarPorEmail() {
       title={desligado ? "Configure SMTP_URL na API para ativar o envio" : undefined}
       onClick={() =>
         enviar.mutate(undefined, {
-          onSuccess: (r) => {
-            const partes = [`${r.enviados} e-mail(s) enviado(s)`];
-            if (r.semOportunidade) partes.push(`${r.semOportunidade} sem oportunidade`);
-            if (r.falhas) partes.push(`${r.falhas} falha(s)`);
-            (r.falhas ? toast.warning : toast.success)(partes.join(" · "));
-          },
+          onSuccess: () =>
+            toast.success("Envio iniciado. Os e-mails chegam em alguns minutos para quem tem oportunidade hoje."),
           onError: (e) => toast.error(e.message),
         })
       }

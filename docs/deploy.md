@@ -60,6 +60,8 @@ terminada em `?pgbouncer=true`) e `DIRECT_URL` (porta 5432).
    - `API_URL`: a URL do `crm-api` no Render, ex.: `https://crm-api.onrender.com`.
      Ela é usada **no build**: se mudar, faça um novo deploy.
    - `ENVIO_CRON_TOKEN`: copie o valor gerado no Render (serviço `crm-api` → Environment).
+   - `AI_ENGINE_URL`: a URL do `crm-ai-engine` no Render. A função `manter-ativo` usa esta
+     variável e a `API_URL` para acordar os dois serviços a cada 10 min, das 7h às 21h em dias úteis.
 4. Faça o deploy e confira se o `WEB_ORIGIN` do Render é exatamente a URL do site. Se não
    for, o login responde 403 (proteção contra CSRF).
 

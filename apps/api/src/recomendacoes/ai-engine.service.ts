@@ -125,6 +125,8 @@ export type AiEngineRecomendacao = AiEngineResponse['recomendacoes'][number];
 export type AiEngineDescarte = AiEngineResponse['descartados'][number];
 export type AiEngineReprovacao = AiEngineResponse['reprovadosComite'][number];
 
+const STATUS_MOTOR_SUBINDO = new Set([502, 503, 504]);
+
 export type AiEngineHealth = {
   ok: boolean;
   engine?: string;
@@ -177,6 +179,13 @@ export class AiEngineService {
       // (nome e patrimônio do cliente).
       await res.body?.cancel().catch(() => undefined);
       this.logger.error(`[${requestId}] AI engine respondeu HTTP ${res.status}`);
+      // 502/503/504 vêm do proxy da hospedagem enquanto o motor hibernado sobe
+      // (a própria chamada já o acordou): é passageiro, não erro do motor.
+      if (STATUS_MOTOR_SUBINDO.has(res.status)) {
+        throw new ServiceUnavailableException(
+          'O motor de recomendação está iniciando. Tente novamente em cerca de 1 minuto.',
+        );
+      }
       throw new BadGatewayException('O motor de recomendação retornou um erro. Tente novamente.');
     }
 

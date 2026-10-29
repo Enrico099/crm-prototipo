@@ -82,6 +82,13 @@ describe('AiEngineService', () => {
     await expect(service().recommend(request)).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
 
+  it.each([502, 503, 504])('motor hibernado subindo (HTTP %i) vira 503 com aviso para tentar de novo', async (status) => {
+    global.fetch = jest.fn().mockResolvedValue(new Response('', { status }));
+    const erro = await service().recommend(request).catch((e: unknown) => e);
+    expect(erro).toBeInstanceOf(ServiceUnavailableException);
+    expect((erro as Error).message).toMatch(/iniciando/);
+  });
+
   it('erro HTTP vira 502 e o corpo (que ecoa dados do cliente) não vai pro log', async () => {
     global.fetch = jest.fn().mockResolvedValue(
       new Response(JSON.stringify({ detail: [{ input: { nome: 'Cliente Sigiloso', patrimonio: 1e6 } }] }), {

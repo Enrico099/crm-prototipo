@@ -10,8 +10,8 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --font-heading: var(--font-sans);
-  /* Serifada institucional: títulos de página e nome do cliente */
-  --font-display: var(--font-display);
+  /* Mesma família dos textos (Archivo), em peso leve: ver .titulo-display */
+  --font-display: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -59,56 +59,58 @@
 }
 
 /*
- * Identidade "private banking": tinta (navy quase preto) + latão, sobre papel
- * levemente quente. Verde/vermelho ficam reservados para positivo/negativo.
+ * Identidade inspirada na HIC Investimentos (hicinvestimentos.com): azul-marinho
+ * profundo, azul de destaque e fundo lavanda bem claro. Verde/vermelho ficam
+ * reservados para positivo/negativo; âmbar, para avisos.
+ * (O token "ouro" virou o azul de destaque; o nome ficou por compatibilidade.)
  */
 :root {
   color-scheme: light;
-  --background: oklch(0.982 0.004 85);
-  --foreground: oklch(0.2 0.02 262);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.02 262);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0.02 262);
+  --background: #f2f3ff;
+  --foreground: #1f1c27;
+  --card: #ffffff;
+  --card-foreground: #1f1c27;
+  --popover: #ffffff;
+  --popover-foreground: #1f1c27;
 
-  --primary: oklch(0.26 0.045 262);
-  --primary-foreground: oklch(0.985 0.004 85);
+  --primary: #222c56;
+  --primary-foreground: #ffffff;
 
-  --secondary: oklch(0.955 0.006 85);
-  --secondary-foreground: oklch(0.26 0.045 262);
+  --secondary: #e9ecfb;
+  --secondary-foreground: #131731;
 
-  --muted: oklch(0.958 0.005 85);
-  --muted-foreground: oklch(0.48 0.015 262);
+  --muted: #eceefb;
+  --muted-foreground: #5a5f78;
 
-  --accent: oklch(0.948 0.01 85);
-  --accent-foreground: oklch(0.22 0.03 262);
+  --accent: #dfebff;
+  --accent-foreground: #131731;
 
   --destructive: oklch(0.55 0.2 25);
 
-  --border: oklch(0.91 0.007 85);
-  --input: oklch(0.885 0.008 85);
-  --ring: oklch(0.68 0.11 75);
+  --border: #dfe2f2;
+  --input: #cfd4ec;
+  --ring: #245aa7;
 
-  --ouro: oklch(0.7 0.115 78);
-  --ouro-foreground: oklch(0.22 0.03 262);
+  --ouro: #245aa7;
+  --ouro-foreground: #ffffff;
   --positivo: oklch(0.5 0.12 160);
   --negativo: oklch(0.53 0.19 25);
   --aviso: oklch(0.975 0.03 88);
   --aviso-foreground: oklch(0.38 0.08 60);
   --aviso-borda: oklch(0.86 0.085 82);
 
-  --chart-1: oklch(0.55 0.18 250);
+  --chart-1: #245aa7;
   --chart-2: oklch(0.65 0.16 160);
   --chart-3: oklch(0.72 0.16 75);
   --chart-4: oklch(0.6 0.22 25);
-  --chart-5: oklch(0.55 0.18 305);
+  --chart-5: #222c56;
 
   /* Gráficos — paletas validadas (skill dataviz: CVD, faixa de luminosidade,
      contraste) contra a superfície do card de cada tema */
-  --viz-linha: oklch(0.38 0.08 262);
-  --viz-area: oklch(0.38 0.08 262 / 0.14);
-  --viz-grade: oklch(0.2 0.02 262 / 0.07);
-  --viz-eixo: oklch(0.5 0.015 262);
+  --viz-linha: #245aa7;
+  --viz-area: rgb(36 90 167 / 0.14);
+  --viz-grade: rgb(19 23 49 / 0.07);
+  --viz-eixo: #5a5f78;
   --viz-perfil-1: #10b981;
   --viz-perfil-2: #3b82f6;
   --viz-perfil-3: #f59e0b;
@@ -116,64 +118,64 @@
   --viz-aplicacoes: #2a78d6;
   --viz-resgates: #eb6834;
 
-  --radius: 0.7rem;
+  --radius: 0.75rem;
 
-  --sidebar: oklch(0.2 0.028 262);
-  --sidebar-foreground: oklch(0.8 0.012 85);
-  --sidebar-primary: oklch(0.79 0.11 80);
-  --sidebar-primary-foreground: oklch(0.2 0.028 262);
-  --sidebar-accent: oklch(0.26 0.032 262);
-  --sidebar-accent-foreground: oklch(0.98 0.005 85);
-  --sidebar-border: oklch(0.29 0.028 262);
-  --sidebar-ring: oklch(0.79 0.11 80);
+  --sidebar: #03142a;
+  --sidebar-foreground: rgb(255 255 255 / 0.72);
+  --sidebar-primary: #8fb4f0;
+  --sidebar-primary-foreground: #03142a;
+  --sidebar-accent: #0c2342;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #13294a;
+  --sidebar-ring: #8fb4f0;
 }
 
 .dark {
   color-scheme: dark;
-  --background: oklch(0.155 0.012 262);
-  --foreground: oklch(0.94 0.006 85);
-  --card: oklch(0.2 0.014 262);
-  --card-foreground: oklch(0.94 0.006 85);
-  --popover: oklch(0.22 0.015 262);
-  --popover-foreground: oklch(0.94 0.006 85);
+  --background: #051026;
+  --foreground: #eef1ff;
+  --card: #0b1a34;
+  --card-foreground: #eef1ff;
+  --popover: #0f1f3c;
+  --popover-foreground: #eef1ff;
 
-  /* No escuro, a ação principal é creme sobre tinta */
-  --primary: oklch(0.9 0.025 85);
-  --primary-foreground: oklch(0.2 0.028 262);
+  /* No escuro, a ação principal é azul-claro sobre marinho */
+  --primary: #dfebff;
+  --primary-foreground: #03142a;
 
-  --secondary: oklch(0.26 0.015 262);
-  --secondary-foreground: oklch(0.94 0.006 85);
+  --secondary: #14244a;
+  --secondary-foreground: #eef1ff;
 
-  --muted: oklch(0.25 0.014 262);
-  --muted-foreground: oklch(0.72 0.012 85);
+  --muted: #12213f;
+  --muted-foreground: #a5afc9;
 
-  --accent: oklch(0.27 0.016 262);
-  --accent-foreground: oklch(0.96 0.006 85);
+  --accent: #172a50;
+  --accent-foreground: #f2f3ff;
 
   --destructive: oklch(0.68 0.19 22);
 
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.75 0.11 78);
+  --border: rgb(255 255 255 / 0.09);
+  --input: rgb(255 255 255 / 0.15);
+  --ring: #8fb4f0;
 
-  --ouro: oklch(0.78 0.11 80);
-  --ouro-foreground: oklch(0.2 0.028 262);
+  --ouro: #8fb4f0;
+  --ouro-foreground: #03142a;
   --positivo: oklch(0.74 0.13 160);
   --negativo: oklch(0.72 0.16 25);
   --aviso: oklch(0.32 0.05 75 / 0.45);
   --aviso-foreground: oklch(0.9 0.07 85);
   --aviso-borda: oklch(0.62 0.1 78 / 0.55);
 
-  --chart-1: oklch(0.65 0.16 250);
+  --chart-1: #6e9be0;
   --chart-2: oklch(0.7 0.14 160);
   --chart-3: oklch(0.75 0.14 75);
   --chart-4: oklch(0.68 0.19 22);
-  --chart-5: oklch(0.66 0.16 305);
+  --chart-5: #b9c6ef;
 
-  --viz-linha: oklch(0.79 0.11 80);
-  --viz-area: oklch(0.79 0.11 80 / 0.16);
-  --viz-grade: oklch(1 0 0 / 0.07);
-  --viz-eixo: oklch(0.72 0.012 85);
+  --viz-linha: #8fb4f0;
+  --viz-area: rgb(143 180 240 / 0.16);
+  --viz-grade: rgb(255 255 255 / 0.07);
+  --viz-eixo: #a5afc9;
   --viz-perfil-1: #059669;
   --viz-perfil-2: #3b82f6;
   --viz-perfil-3: #c98500;
@@ -181,14 +183,14 @@
   --viz-aplicacoes: #3987e5;
   --viz-resgates: #d95926;
 
-  --sidebar: oklch(0.13 0.012 262);
-  --sidebar-foreground: oklch(0.78 0.01 85);
-  --sidebar-primary: oklch(0.79 0.11 80);
-  --sidebar-primary-foreground: oklch(0.15 0.012 262);
-  --sidebar-accent: oklch(0.21 0.016 262);
-  --sidebar-accent-foreground: oklch(0.97 0.005 85);
-  --sidebar-border: oklch(1 0 0 / 7%);
-  --sidebar-ring: oklch(0.79 0.11 80);
+  --sidebar: #020b18;
+  --sidebar-foreground: rgb(255 255 255 / 0.7);
+  --sidebar-primary: #8fb4f0;
+  --sidebar-primary-foreground: #020b18;
+  --sidebar-accent: #0b1d38;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 0.07);
+  --sidebar-ring: #8fb4f0;
 }
 
 @layer base {
@@ -208,11 +210,11 @@
   .caixa-aviso {
     @apply rounded-lg border border-aviso-borda bg-aviso text-aviso-foreground;
   }
-  /* Título de página em serifada */
+  /* Título de página: Archivo leve e grande, como os títulos da HIC */
   .titulo-display {
-    font-family: var(--font-display);
-    font-weight: 600;
-    letter-spacing: -0.015em;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    letter-spacing: -0.025em;
   }
   /* Valores de destaque (KPIs, patrimônio): sans com algarismos tabulares */
   .numero-destaque {

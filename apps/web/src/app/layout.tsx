@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans, Source_Serif_4 } from "next/font/google";
+import { Archivo, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
-const sans = IBM_Plex_Sans({
+const sans = Archivo({
   variable: "--font-sans",
-  weight: ["400", "500", "600", "700"],
   subsets: ["latin"],
 });
 
@@ -15,11 +14,6 @@ const mono = IBM_Plex_Mono({
   subsets: ["latin"],
 });
 
-const display = Source_Serif_4({
-  variable: "--font-display",
-  weight: ["600"],
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Capital Elite — Wealth CRM",
@@ -35,7 +29,7 @@ export default function RootLayout({
     // suppressHydrationWarning: o next-themes ajusta a classe do <html> antes da hidratação
     <html
       lang="pt-BR"
-      className={`${sans.variable} ${mono.variable} ${display.variable} h-full antialiased`}
+      className={`${sans.variable} ${mono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body

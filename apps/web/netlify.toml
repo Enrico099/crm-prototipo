@@ -14,3 +14,7 @@
 
 [functions]
   directory = "apps/web/netlify/functions"
+
+# Declarado explicitamente: no monorepo o Netlify não detecta o Next.js sozinho
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

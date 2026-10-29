@@ -41,8 +41,10 @@ export function SelectOpcoes({
       onValueChange={(v) => onChange((v as string | null) ?? "")}
       disabled={disabled}
     >
-      <SelectTrigger id={id} className={cn("w-full", className)} {...aria}>
-        <SelectValue placeholder={placeholder} />
+      {/* min-w-0 + truncate: opção de nome longo (ex.: produto) corta com "…" em vez
+          de alargar o campo e empurrar o formulário para fora do diálogo no celular */}
+      <SelectTrigger id={id} className={cn("w-full min-w-0", className)} {...aria}>
+        <SelectValue placeholder={placeholder} className="min-w-0 truncate block!" />
       </SelectTrigger>
       <SelectContent>
         {Object.entries(opcoes).map(([valor, rotulo]) => (

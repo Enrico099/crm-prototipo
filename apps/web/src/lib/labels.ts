@@ -7,6 +7,7 @@ import type {
   TipoInteracao,
   TipoMovimentacao,
   Tributacao,
+  UserRole,
 } from "@/types/api";
 
 export const perfilLabel: Record<PerfilInvestidor, string> = {
@@ -90,4 +91,11 @@ export const tipoMovimentacaoLabel: Record<TipoMovimentacao, string> = {
   SALDO_INICIAL: "Saldo inicial",
   APLICACAO: "Aplicação",
   RESGATE: "Resgate",
+};
+
+export const roleLabel: Record<UserRole, string> = {
+  ADMIN: "Administrador",
+  ASSESSOR: "Assessor",
+  COMPLIANCE: "Compliance",
+  READONLY: "Somente leitura",
 };

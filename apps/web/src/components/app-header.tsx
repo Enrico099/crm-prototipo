@@ -21,13 +21,8 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Marca, NavLinks } from "@/components/nav-links";
 import { cn } from "@/lib/utils";
 import { useLogout, useMe } from "@/lib/queries";
+import { roleLabel } from "@/lib/labels";
 
-const roleLabel: Record<string, string> = {
-  ADMIN: "Administrador",
-  ASSESSOR: "Assessor",
-  COMPLIANCE: "Compliance",
-  READONLY: "Somente leitura",
-};
 
 function initials(nome: string) {
   return nome

@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
@@ -56,6 +56,11 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
     const ok = await bcrypt.compare(dto.password, user?.senhaHash ?? HASH_FICTICIO);
+
+    // Cadastro aguardando aprovação: só quem acertou a senha fica sabendo
+    if (user && ok && !user.ativo && user.cadastroPendente) {
+      throw new ForbiddenException('Sua conta ainda aguarda aprovação de um administrador.');
+    }
 
     if (!user || !ok || !user.ativo) {
       this.throttle.registrarFalha(dto.email, ip);

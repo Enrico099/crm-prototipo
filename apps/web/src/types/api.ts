@@ -4,6 +4,18 @@
 
 export type UserRole = "ADMIN" | "ASSESSOR" | "COMPLIANCE" | "READONLY";
 
+/** Usuário na tela de administração (GET /usuarios) */
+export type UsuarioAdmin = {
+  id: string;
+  nome: string;
+  email: string;
+  role: UserRole;
+  ativo: boolean;
+  /** Criou a conta pela tela de cadastro e aguarda aprovação */
+  cadastroPendente: boolean;
+  createdAt: string;
+};
+
 export type AuthUser = {
   id: string;
   email: string;

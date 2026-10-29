@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { CadastroService } from './cadastro.service';
 import { LoginThrottleService } from './login-throttle.service';
 import { MfaController } from './mfa/mfa.controller';
 import { MfaService } from './mfa/mfa.service';
@@ -20,7 +21,7 @@ import { MfaService } from './mfa/mfa.service';
     }),
   ],
   controllers: [AuthController, MfaController],
-  providers: [AuthService, LoginThrottleService, MfaService],
+  providers: [AuthService, CadastroService, LoginThrottleService, MfaService],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

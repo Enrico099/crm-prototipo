@@ -8,6 +8,7 @@ import {
   History,
   BarChart3,
   Target,
+  UserCog,
   type LucideIcon,
 } from "lucide-react";
 
@@ -15,6 +16,8 @@ export type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
+  /** Só aparece para administradores (a API também barra os demais) */
+  apenasAdmin?: boolean;
 };
 
 export type NavGrupo = { titulo: string; itens: NavItem[] };
@@ -41,7 +44,10 @@ export const navGrupos: NavGrupo[] = [
   },
   {
     titulo: "Análise",
-    itens: [{ href: "/relatorios", label: "Relatórios", icon: BarChart3 }],
+    itens: [
+      { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
+      { href: "/usuarios", label: "Usuários", icon: UserCog, apenasAdmin: true },
+    ],
   },
 ];
 

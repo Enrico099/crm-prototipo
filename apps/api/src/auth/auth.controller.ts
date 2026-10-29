@@ -14,12 +14,15 @@ import type { Request, Response } from 'express';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { contextoDaRequisicao } from '../common/request-context';
 import { AuthService } from './auth.service';
+import { CadastroService } from './cadastro.service';
 import { REFRESH_COOKIE, gravarCookies, limparCookies } from './cookies';
 import {
   alterarSenhaSchema,
+  cadastroSchema,
   loginSchema,
   verificarMfaSchema,
   type AlterarSenhaDto,
+  type CadastroDto,
   type LoginDto,
   type VerificarMfaDto,
 } from './dto/auth.schemas';
@@ -34,6 +37,7 @@ export { ACCESS_COOKIE, REFRESH_COOKIE } from './cookies';
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
+    private readonly cadastro: CadastroService,
     private readonly mfa: MfaService,
     private readonly config: ConfigService,
   ) {}
@@ -55,6 +59,14 @@ export class AuthController {
     const tokens = await this.auth.issueTokens(user, { ctx });
     gravarCookies(res, this.config, tokens.accessToken, tokens.refreshToken);
     return { user: tokens.user };
+  }
+
+  /** Cadastro pela tela de login: a conta fica pendente até um admin aprovar */
+  @Public()
+  @Post('cadastro')
+  @HttpCode(HttpStatus.ACCEPTED)
+  cadastrar(@Body(new ZodValidationPipe(cadastroSchema)) dto: CadastroDto, @Req() req: Request) {
+    return this.cadastro.cadastrar(dto, contextoDaRequisicao(req));
   }
 
   @Public()

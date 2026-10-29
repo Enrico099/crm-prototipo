@@ -32,6 +32,8 @@ model User {
   senhaHash String
   role      UserRole @default(ASSESSOR)
   ativo     Boolean  @default(true)
+  // Conta criada pela tela de cadastro, aguardando aprovação de um admin (ativo = false)
+  cadastroPendente Boolean @default(false)
 
   mfaEnabled Boolean @default(false)
   // Segredo TOTP cifrado (AES-256-GCM, ver src/auth/mfa/cifra.ts), nunca em claro

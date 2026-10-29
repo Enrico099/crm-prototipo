@@ -9,6 +9,13 @@ export const loginSchema = z.object({
 
 export type LoginDto = z.infer<typeof loginSchema>;
 
+export const cadastroSchema = z.object({
+  nome: z.string().trim().min(3, 'Informe o nome completo').max(120),
+  email: z.string().trim().email('E-mail inválido').max(254).toLowerCase(),
+  senha: senhaNovaSchema,
+});
+export type CadastroDto = z.infer<typeof cadastroSchema>;
+
 // TOTP (6 dígitos) ou código de recuperação ("abcde-fghjk")
 const codigoMfa = z.string().trim().min(6, 'Informe o código').max(20);
 

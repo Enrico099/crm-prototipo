@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { navGrupos } from "@/lib/nav";
+import { usePermissoes } from "@/lib/permissoes";
 import { cn } from "@/lib/utils";
 
 export function isAtivo(pathname: string, href: string) {
@@ -15,6 +16,7 @@ export function isAtivo(pathname: string, href: string) {
 /** Links da navegação principal — usados na sidebar (desktop) e no menu mobile. */
 export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { podeGerirUsuarios } = usePermissoes();
 
   return (
     <div className="flex flex-col gap-6">
@@ -24,7 +26,7 @@ export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             {grupo.titulo}
           </p>
           <ul className="flex flex-col gap-0.5">
-            {grupo.itens.map((item) => {
+            {grupo.itens.filter((item) => !item.apenasAdmin || podeGerirUsuarios).map((item) => {
               const Icon = item.icon;
               const active = isAtivo(pathname, item.href);
               return (

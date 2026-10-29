@@ -35,6 +35,8 @@ import type {
   OportunidadesDoDia,
   ResumoEnvio,
   StatusEnvio,
+  UserRole,
+  UsuarioAdmin,
 } from "@/types/api";
 
 // ----- Auth -----
@@ -58,6 +60,40 @@ export function useLogin() {
     onSuccess: (res) => {
       if (!res.mfaObrigatorio) qc.setQueryData(ME_QUERY_KEY, res.user);
     },
+  });
+}
+
+/** Cadastro público: a conta fica pendente até um admin aprovar */
+export function useCadastro() {
+  return useMutation({
+    mutationFn: (body: { nome: string; email: string; senha: string }) =>
+      apiFetch<{ mensagem: string }>("/auth/cadastro", { method: "POST", body }),
+  });
+}
+
+export const USUARIOS_KEY = "usuarios" as const;
+
+export function useUsuarios() {
+  return useQuery({
+    queryKey: [USUARIOS_KEY],
+    queryFn: () => apiFetch<UsuarioAdmin[]>("/usuarios"),
+  });
+}
+
+export function useAprovarCadastro() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, role }: { id: string; role: UserRole }) =>
+      apiFetch<UsuarioAdmin>(`/usuarios/${id}/aprovar`, { method: "PATCH", body: { role } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [USUARIOS_KEY] }),
+  });
+}
+
+export function useRecusarCadastro() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`/usuarios/${id}/cadastro`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [USUARIOS_KEY] }),
   });
 }
 

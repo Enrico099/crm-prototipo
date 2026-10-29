@@ -19,6 +19,8 @@ export function permissoesDe(role: UserRole | undefined) {
     podeVerAuditoria: role === "ADMIN" || role === "COMPLIANCE",
     /** Disparar o e-mail das oportunidades do dia para a equipe */
     podeEnviarOportunidades: role === "ADMIN",
+    /** Aprovar cadastros e ver a lista de usuários */
+    podeGerirUsuarios: role === "ADMIN",
   };
 }
 

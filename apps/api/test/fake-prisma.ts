@@ -43,7 +43,7 @@ const RELACOES: Record<string, Record<string, Rel>> = {
 const DECIMAIS = new Set(['patrimonio', 'valor', 'score', 'rentabilidadeAno', 'taxaAdmin', 'taxaPerformance', 'valorEstimado']);
 
 const DEFAULTS: Record<string, () => Record<string, unknown>> = {
-  user: () => ({ ativo: true, role: 'ASSESSOR', mfaEnabled: false, mfaSecret: null, mfaUltimoPasso: null, mfaAtivadoEm: null }),
+  user: () => ({ ativo: true, cadastroPendente: false, createdAt: new Date(), role: 'ASSESSOR', mfaEnabled: false, mfaSecret: null, mfaUltimoPasso: null, mfaAtivadoEm: null }),
   codigoRecuperacaoMfa: () => ({ usadoEm: null, criadoEm: new Date() }),
   cliente: () => ({
     telefone: null, cidade: null, uf: null, perfil: 'MODERADO', status: 'PROSPECTO',

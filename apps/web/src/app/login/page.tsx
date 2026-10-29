@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -195,7 +196,13 @@ function LoginForm() {
           </Button>
         </form>
 
-        <p className="text-center text-xs text-muted-foreground pt-1">
+        <p className="text-center text-sm pt-1">
+          Não tem conta?{" "}
+          <Link href="/cadastro" className="font-medium text-primary hover:underline">
+            Criar conta
+          </Link>
+        </p>
+        <p className="text-center text-xs text-muted-foreground">
           Esqueceu a senha ou perdeu o autenticador? Procure o administrador do sistema.
         </p>
       </CardContent>

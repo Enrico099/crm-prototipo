@@ -5,12 +5,14 @@ import { NextResponse, type NextRequest } from "next/server";
 // é renovado automaticamente pelo client (api.ts) na primeira 401.
 const SESSION_COOKIE = "crm_rt";
 const LOGIN_PATH = "/login";
+// Páginas abertas sem sessão (quem já está logado volta para o sistema)
+const PAGINAS_PUBLICAS = new Set([LOGIN_PATH, "/cadastro"]);
 const DEFAULT_LOGGED_IN = "/dashboard";
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const hasSession = req.cookies.has(SESSION_COOKIE);
-  const isLoginPage = pathname === LOGIN_PATH;
+  const isLoginPage = PAGINAS_PUBLICAS.has(pathname);
 
   if (!hasSession && !isLoginPage) {
     const url = req.nextUrl.clone();

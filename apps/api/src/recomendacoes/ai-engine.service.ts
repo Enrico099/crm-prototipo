@@ -194,6 +194,20 @@ export class AiEngineService {
     return parsed.data;
   }
 
+  /**
+   * Espera o motor responder ao /health. Em hospedagem que hiberna o serviço
+   * ocioso (plano gratuito do Render), a primeira chamada acorda o motor e o
+   * proxy responde 502 até ele subir. Usado antes das varreduras em lote.
+   */
+  async aguardarDisponivel(maxMs = 90_000, intervaloMs = 5_000): Promise<boolean> {
+    const limite = Date.now() + maxMs;
+    for (;;) {
+      if ((await this.health()).ok) return true;
+      if (Date.now() + intervaloMs > limite) return false;
+      await new Promise((r) => setTimeout(r, intervaloMs));
+    }
+  }
+
   /** Health check com timeout curto — usado em GET /api/health */
   async health(): Promise<AiEngineHealth> {
     try {

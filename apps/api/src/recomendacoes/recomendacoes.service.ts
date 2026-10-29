@@ -217,6 +217,9 @@ export class RecomendacoesService {
       take: LIMITE_CLIENTES_OPORTUNIDADES,
     });
 
+    // Acorda o motor antes da varredura: sem isso, cada cliente cairia em erro
+    if (clientes.length > 0) await this.aiEngine.aguardarDisponivel();
+
     type Resultado =
       | { tipo: 'ok'; recs: AiEngineRecomendacao[]; reprovados: number; engineVersion: string }
       | { tipo: 'pendencia'; motivo: string };

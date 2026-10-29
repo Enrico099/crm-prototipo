@@ -109,4 +109,17 @@ describe('AiEngineService', () => {
     global.fetch = jest.fn().mockRejectedValue(new TypeError('fetch failed'));
     await expect(service().health()).resolves.toEqual({ ok: false, erro: 'indisponível' });
   });
+
+  it('aguardarDisponivel insiste enquanto o motor acorda (502) e desiste no limite', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(new Response('', { status: 502 }))
+      .mockResolvedValueOnce(new Response('', { status: 502 }))
+      .mockResolvedValue(new Response(JSON.stringify({ status: 'ok' }), { status: 200 }));
+    await expect(service().aguardarDisponivel(1_000, 1)).resolves.toBe(true);
+    expect(global.fetch).toHaveBeenCalledTimes(3);
+
+    global.fetch = jest.fn().mockResolvedValue(new Response('', { status: 502 }));
+    await expect(service().aguardarDisponivel(20, 5)).resolves.toBe(false);
+  });
 });

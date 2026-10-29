@@ -19,7 +19,11 @@ type Contexto = Awaited<ReturnType<typeof criarApp>>;
 
 async function criarApp() {
   const prisma = new FakePrisma();
-  const ai = { recommend: jest.fn(), health: jest.fn().mockResolvedValue({ ok: true }) };
+  const ai = {
+    recommend: jest.fn(),
+    health: jest.fn().mockResolvedValue({ ok: true }),
+    aguardarDisponivel: jest.fn().mockResolvedValue(true),
+  };
   const email = { configurado: true, enviar: jest.fn().mockResolvedValue(undefined) };
 
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
